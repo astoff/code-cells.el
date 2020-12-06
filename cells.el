@@ -61,7 +61,7 @@ Each of regexp should match the content of a comment line which
 introduces a cell break."
   :type '(repeat sexp))
 
-(defface cells-header-line '((t :inherit header-line))
+(defface cells-header-line '((t :extend t :inherit header-line))
   "Face used by `cells-mode' to highlight cell boundaries.")
 
 (defun cells-boundary-regexp ()
@@ -76,15 +76,9 @@ introduces a cell break."
 With ARG, repeat this that many times.  If ARG is negative, move
 backward."
   (interactive "p")
-  (or arg (setq arg 1))
-  (when (and (> arg 0) (not (eobp)))
-    (forward-char))
-  (save-match-data
-    (or
-     (when (re-search-forward (cells-boundary-regexp) nil t arg)
-       (goto-char (match-beginning 0)))
-     (when (< arg 0) (goto-char (point-min)))
-     (when (> arg 0) (goto-char (point-max))))))
+  (let ((page-delimiter (cells-boundary-regexp)))
+    (forward-page arg)
+    (move-beginning-of-line 1)))
 
 (defun cells-backward-cell (&optional arg)
   "Move to the previous cell boundary, or beginning of buffer.
@@ -92,7 +86,7 @@ With ARG, repeat this that many times.  If ARG is negative, move
 forward."
   (interactive "p")
   (cells-forward-cell (- (or arg 1))))
-  
+
 (defmacro cells-do (&rest body)
   "Find current cell bounds and evaluate BODY.
 Inside BODY, the variables `beg' and `end' are bound to the
@@ -144,12 +138,13 @@ via `pulse-momentary-highlight-region'."
                        '(pulse-momentary-highlight-region beg end))
                     (funcall ',fun beg end)))))
 
+;;;###autoload
 (define-minor-mode cells-mode
   "Minor mode for cell-oriented code."
   ;; TODO: integrate with outline-mode?
   :keymap (make-sparse-keymap)
   (let ((spec `((,(concat "\\(" (cells-boundary-regexp) "\\).*\n")
-                 0 'cells-header-line prepend))))
+                 0 'cells-header-line append))))
     (if cells-mode
         (progn
           (font-lock-add-keywords nil spec))
