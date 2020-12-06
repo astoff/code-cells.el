@@ -151,5 +151,84 @@ via `pulse-momentary-highlight-region'."
       (font-lock-remove-keywords nil spec))
     (font-lock-flush)))
 
+(defvar cells-jupytext-to-script-args '((t "--to" "auto:percent"))
+  "An alist mapping strings to lists of strings.  The first entry
+  matching a notebook's metadata.kernelspec.language property is
+  used as additional arguments to jupytext when converting it
+  from ipynb format.  The entry `t' serves as fallback.")
+
+(defvar cells-jupytext-to-ipynb-args '((prog-mode "--to" "ipynb"))
+  "An alist mapping major modes to lists of strings.  The first
+  entry matching the current buffer's major mode is used when
+  converting it to ipynb format.")
+
+(defvar cells-convert-ipynb-hook '(cells-mode)
+  "Hook run when opening a ipynb file, after it has been
+  converted to a script and the appropriate major mode has been
+  activated.
+
+  An additional hook, named `cells-convert-ipynb-<language>-hook' is
+  run after this one.")
+
+(defun cells-convert-ipynb ()
+  "Pipe buffer through jupytext and set up the appropriate major mode."
+  (interactive)
+  (goto-char (point-min))
+  (let* ((file (buffer-file-name))
+         (nb (json-parse-buffer))
+         (pt (point))
+         (lang (map-nested-elt nb '("metadata" "kernelspec" "language")))
+         (mode (intern (concat lang "-mode")))
+         (args (or (map-elt cells-jupytext-to-script-args mode)
+                   (map-elt cells-jupytext-to-script-args t)))
+         (logfile (make-temp-file "jupytext-"))
+         (exit (apply 'call-process-region
+                          nil nil
+                          "jupytext"
+                          nil (list t logfile) nil args)))
+    (with-current-buffer (get-buffer-create "*jupytext log*")
+      (insert (current-time-string)
+              ": Converting \"" (or file "?") "\" to script.\n")
+      (insert-file-contents logfile)
+      (delete-file logfile))
+    (unless (eq 0 exit)
+      (delete-region pt (point-max))
+      (error "Error converting notebook: exit code %s" exit))
+    (delete-region (point-min) pt)
+    (goto-char (point-min))
+    (setq-local write-file-functions '(cells-write-ipynb))
+    (when (fboundp mode)
+      (funcall mode)
+      (run-hooks 'cells-convert-ipynb-hook
+                 (intern (concat "cells-convert-ipynb-" lang "-hook"))))))
+
+(defun cells-write-ipynb (&optional file)
+  "Pipe buffer through jupytext and write to ipynb file.
+Interactively, asks for the file name.  Called from Lisp, FILE
+defaults to the current buffer file name."
+  (interactive "F")
+  (let* ((file (or file buffer-file-name))
+         (temp (generate-new-buffer " *jupytext output*"))
+         (logfile (make-temp-file "jupytext-"))
+         (args (map-some (lambda (k v) (when (derived-mode-p k) v))
+                         cells-jupytext-to-ipynb-args))
+         (exit (apply 'call-process-region nil nil "jupytext" nil
+                      (list temp logfile) nil args)))
+    (with-current-buffer (get-buffer-create "*jupytext log*")
+      (insert (current-time-string)
+              ": Converting \"" (or file "?") "\" to ipynb.\n")
+      (insert-file-contents logfile)
+      (delete-file logfile))
+    (unless (eq 0 exit)
+        (error "Error converting notebook: exit code %s" exit))
+    (with-current-buffer temp
+      (write-region nil nil file))
+    (set-buffer-modified-p nil)
+    (set-visited-file-modtime)
+    'job-done))
+
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.ipynb\\'" . cells-convert-ipynb))
+
 (provide 'cells)
 ;;; cells.el ends here
