@@ -10,13 +10,14 @@ script in the web interface or with
 jupyter nbconvert --to script <FILE.ipynb>
 ```
 
-It's also worth mentioning [jupytext] and [ipynb-py-convert], which
-can convert to and from notebook format.
+If you have [Jupytext] installed, you can also directly open ipynb
+notebook files in Emacs.  They will be automatically converted to a
+script for editing, and converted back to notebook format when saving.
 
 Instead of defining every conceivable command relevant to code with
 cells, this package provides a simple way to turn ordinary editing
 commands into “cell-aware” ones.  The `cells-command` function takes
-as argument a function that acts a region, and returns an anonymous
+as argument a function that acts on a region, and returns an anonymous
 command that acts on the current cell.  Thus, one can redefine `C-c
 C-c` in Python mode to evaluate the current cell by doing the
 following:
@@ -28,19 +29,31 @@ following:
   (cells-command 'python-shell-send-region))
 ```
 
-See below for a more substantial configuration example, which is
-specifically for Jupyter mode but can be easily adapted to any other
-mode or language with a REPL in Emacs.
+There is also a `cells-do` macro, which evaluates its body with the
+current cell bounds accessible as variables.  See the documentation
+for details.
 
-Also available in this package are the following; see the
-documentation for more details.
+Editing commands and minor mode
+-------------------------------
 
-- `cells-do`: a macro that makes the current cells bounds accessible
-  as variables.
-- `cells-mark-cell`: mark current cell and activate region
-- `cells-mode`: for now, just adds font locking to the cell
-  boundaries.  Also provides a keymap where one can add any desired
-  cell-related commands.
+Out of the box, only three editing commands are provided:
+
+- `cells-forward-cell` and `cells-backward-cell` jump to the
+  next/previous cell header.
+- `cells-mark-cell` marks the current cell and activates the region.
+
+Everything else is left up for the user to define with the mechanism
+explained above.  See below for a more substantial configuration
+example, which is specific for Jupyter mode but can be easily adapted
+to any other mode or language with a REPL in Emacs.
+
+Finally, there is a minor-mode, `cells-mode`, which provides the
+following things:
+
+- Font locking for cell boundaries.
+- A keymap, `cells-mode-map`, for your custom cell commands.
+- (TODO) Special `adaptive-fill-mode` settings to handle markdown text
+  behind a "wall" of comment characters on the left margin.
 
 Keybindings for [emacs-jupyter]
 -------------------------------
@@ -70,7 +83,9 @@ A hydra for [emacs-jupyter]
 
 The following defines a handy [hydra] for Jupyter mode.  Activate it
 with `M-x notebook-hydra/body RET` or bind that command to a key in
-`jupyter-repl-interaction-mode-map`.
+`jupyter-repl-interaction-mode-map`.  Note that since `defhydra` is a
+macro and wraps the definition of a key in an interactive lambda, we need
+to use `cells-do` instead of `cells-command` here.
 
 ``` elisp
 (defhydra notebook-hydra (:color red :hint nil)
@@ -102,6 +117,27 @@ Kernel: _r_estart, eval _a_bove, _z_: pop to
 The head `x` asks for a command like `M-x`, and executes it with the
 current cell as active region.  Thus, for instance, typing `x
 comment-dwim RET` in this hydra will comment out the current cell.
+
+Handling Jupyter notebook files with Jupytext
+---------------------------------------------
+
+With this package installed, you can edit Jupyter notebook (`*.ipynb`)
+files as if they were normal plain-text scripts.  Converting to and
+from the JSON-based ipynb format is done by the [Jupytext] utility,
+which needs to be installed separately.
+
+**Important notice:** The automatic format conversion on save hasn't
+been thoroughly tested.  In particular, it (probably) doesn't handle
+backups in the expected way.  Do not rely on its correctness!
+
+Note also that the result cells of ipynb files are not retained in the
+conversion to script format.  This means that opening and then saving
+an ipynb file clears all cell outputs.
+
+Within a ipynb buffer, you can use `write-file` (`C-x C-w`) to save a
+copy in script format, as shown in the screen.  Moreover, from any
+script file with cell separators understood by Jupytext, you can call
+`cells-write-ipynb` to save a copy in notebook format.
 
 [jupytext]: https://github.com/mwouts/jupytext
 [ipynb-py-convert]: https://github.com/kiwi0fruit/ipynb-py-convert/
