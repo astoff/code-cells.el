@@ -53,6 +53,8 @@
   :group 'convenience
   :prefix "cells-")
 
+;;* Cell navigation
+
 (defcustom cells-cell-markers
   '("%%"
     (regexp "In\\s-*\\[.*?\\]"))
@@ -69,8 +71,9 @@ introduces a cell break."
   (rx line-start
       (+ (syntax comment-start))
       (* (syntax whitespace))
-      (or (eval (cons 'or cells-cell-markers)))))
+      (eval (cons 'or cells-cell-markers))))
 
+;;;###autoload
 (defun cells-forward-cell (&optional arg)
   "Move to the next cell boundary, or end of buffer.
 With ARG, repeat this that many times.  If ARG is negative, move
@@ -80,6 +83,7 @@ backward."
     (forward-page arg)
     (move-beginning-of-line 1)))
 
+;;;###autoload
 (defun cells-backward-cell (&optional arg)
   "Move to the previous cell boundary, or beginning of buffer.
 With ARG, repeat this that many times.  If ARG is negative, move
@@ -87,6 +91,7 @@ forward."
   (interactive "p")
   (cells-forward-cell (- (or arg 1))))
 
+;;;###autoload
 (defmacro cells-do (&rest body)
   "Find current cell bounds and evaluate BODY.
 Inside BODY, the variables `beg' and `end' are bound to the
@@ -103,6 +108,7 @@ region is active, use its bounds instead."
      (`(,using-region ,end ,beg)
       ,@body)))
 
+;;;###autoload
 (defun cells-mark-cell ()
   "Put point at the beginning of this cell, mark at end."
   ;; TODO: add arg; extend region when active
@@ -111,6 +117,7 @@ region is active, use its bounds instead."
    (goto-char beg)
    (push-mark end nil t)))
 
+;;;###autoload
 (defun cells-command (fun &optional docstring &rest options)
   "Returns an anonymous command that calls FUN on the current cell.
 
@@ -151,80 +158,86 @@ via `pulse-momentary-highlight-region'."
       (font-lock-remove-keywords nil spec))
     (font-lock-flush)))
 
-(defvar cells-jupytext-to-script-args '((t "--to" "auto:percent"))
-  "An alist mapping strings to lists of strings.  The first entry
-  matching a notebook's metadata.kernelspec.language property is
-  used as additional arguments to jupytext when converting it
-  from ipynb format.  The entry `t' serves as fallback.")
+;;* Jupyter notebook conversion
 
-(defvar cells-jupytext-to-ipynb-args '((prog-mode "--to" "ipynb"))
-  "An alist mapping major modes to lists of strings.  The first
-  entry matching the current buffer's major mode is used when
-  converting it to ipynb format.")
+(defcustom cells-convert-ipynb-style
+  '(("jupytext" "--to" "ipynb")
+    ("jupytext" "--to" "auto:percent")
+    nil
+    cells-convert-ipynb-hook)
+  "Determines how to convert ipynb files for editing.
+The first two entries are lists of strings: the command name and
+arguments used, respectively, to convert to and from ipynb
+format.
+
+The third entry, if present, specificies the major mode
+called after converting from ipynb.  If omitted, the major mode
+is determined from the notebook's language.
+
+The fourth entry, also optional, is a hook run after the new
+major mode is activated."
+  :type '(list sexp sexp sexp sexp))
 
 (defvar cells-convert-ipynb-hook '(cells-mode)
-  "Hook run when opening a ipynb file, after it has been
-  converted to a script and the appropriate major mode has been
-  activated.
+  "Hook used in the default `cells-convert-ipynb-style'.")
 
-  An additional hook, named `cells-convert-ipynb-<language>-hook' is
-  run after this one.")
+(defun cells--call-process (buffer command)
+  "Pipe BUFFER through COMMAND, with output to the current buffer.
+Returns the process exit code.  COMMAND is a list of strings, the
+program name followed by arguments."
+  (unless (executable-find (car command))
+    (error "Can't find %s" (car command)))
+  (let ((logfile (make-temp-file "emacs-cells-")))
+    (prog1
+        (apply 'call-process-region nil nil (car command) nil
+                                    (list buffer logfile) nil
+                                    (cdr command))
+      (with-temp-buffer
+        (insert-file-contents logfile)
+        (when (> (buffer-size) 0)
+          (display-warning 'cells (buffer-substring-no-properties
+                                   (point-min) (point-max))))
+        (delete-file logfile)))))
 
+;;;###autoload
 (defun cells-convert-ipynb ()
-  "Pipe buffer through jupytext and set up the appropriate major mode."
-  (interactive)
+  "Convert buffer from ipynb format to a regular script."
   (goto-char (point-min))
   (let* ((file (buffer-file-name))
          (nb (json-parse-buffer))
          (pt (point))
-         (lang (map-nested-elt nb '("metadata" "kernelspec" "language")))
-         (mode (intern (concat lang "-mode")))
-         (args (or (map-elt cells-jupytext-to-script-args mode)
-                   (map-elt cells-jupytext-to-script-args t)))
-         (logfile (make-temp-file "jupytext-"))
-         (exit (apply 'call-process-region
-                          nil nil
-                          "jupytext"
-                          nil (list t logfile) nil args)))
-    (with-current-buffer (get-buffer-create "*jupytext log*")
-      (insert (current-time-string)
-              ": Converting \"" (or file "?") "\" to script.\n")
-      (insert-file-contents logfile)
-      (delete-file logfile))
+         (lang (or (map-nested-elt nb '("metadata" "kernelspec" "language"))
+                   (map-nested-elt nb '("metadata" "jupytext" "main_language"))))
+         (mode (or (caddr cells-convert-ipynb-style)
+                   (intern (concat lang "-mode"))))
+         (exit (cells--call-process t (cadr cells-convert-ipynb-style))))
     (unless (eq 0 exit)
       (delete-region pt (point-max))
-      (error "Error converting notebook: exit code %s" exit))
+      (error "Error converting notebook (exit code %s)" exit))
     (delete-region (point-min) pt)
-    (goto-char (point-min))
+    (set-buffer-modified-p nil)
     (setq-local write-file-functions '(cells-write-ipynb))
     (when (fboundp mode)
       (funcall mode)
-      (run-hooks 'cells-convert-ipynb-hook
-                 (intern (concat "cells-convert-ipynb-" lang "-hook"))))))
+      (run-hooks (cadddr cells-convert-ipynb-style)))))
 
+;;;###autoload
 (defun cells-write-ipynb (&optional file)
-  "Pipe buffer through jupytext and write to ipynb file.
+  "Convert buffer to ipynb file and write to FILE.
 Interactively, asks for the file name.  Called from Lisp, FILE
 defaults to the current buffer file name."
   (interactive "F")
   (let* ((file (or file buffer-file-name))
-         (temp (generate-new-buffer " *jupytext output*"))
-         (logfile (make-temp-file "jupytext-"))
-         (args (map-some (lambda (k v) (when (derived-mode-p k) v))
-                         cells-jupytext-to-ipynb-args))
-         (exit (apply 'call-process-region nil nil "jupytext" nil
-                      (list temp logfile) nil args)))
-    (with-current-buffer (get-buffer-create "*jupytext log*")
-      (insert (current-time-string)
-              ": Converting \"" (or file "?") "\" to ipynb.\n")
-      (insert-file-contents logfile)
-      (delete-file logfile))
+         (temp (generate-new-buffer " *cells--call-process output*"))
+         (exit (cells--call-process temp (car cells-convert-ipynb-style))))
     (unless (eq 0 exit)
-        (error "Error converting notebook: exit code %s" exit))
+        (error "Error converting notebook (exit code %s)" exit))
     (with-current-buffer temp
-      (write-region nil nil file))
-    (set-buffer-modified-p nil)
-    (set-visited-file-modtime)
+      (write-region nil nil file)
+      (kill-buffer))
+    (when (eq file buffer-file-name)
+      (set-buffer-modified-p nil)
+      (set-visited-file-modtime))
     'job-done))
 
 ;;;###autoload
