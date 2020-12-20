@@ -45,6 +45,7 @@
 
 ;;; Code:
 
+(require 'map)
 (require 'pulse)
 (require 'rx)
 
@@ -56,11 +57,14 @@
 ;;* Cell navigation
 
 (defcustom cells-cell-markers
-  '("%%"
-    (regexp "In\\s-*\\[.*?\\]"))
+  '((regexp "\\s-*%\\(%+\\)")
+    (regexp "\\(\\*+\\)")
+    (regexp " In\\s-*\\[.*?\\]"))
   "A list of regular expressions in sexp form (see `rx').
 Each of regexp should match the content of a comment line which
-introduces a cell break."
+introduces a cell break.
+
+The length of the first capture determines the outline level."
   :type '(repeat sexp))
 
 (defface cells-header-line '((t :extend t :inherit header-line))
@@ -70,7 +74,6 @@ introduces a cell break."
   "Return a regexp matching comment lines that serve as cell boundary."
   (rx line-start
       (+ (syntax comment-start))
-      (* (syntax whitespace))
       (eval (cons 'or cells-cell-markers))))
 
 ;;;###autoload
@@ -145,16 +148,48 @@ via `pulse-momentary-highlight-region'."
                        '(pulse-momentary-highlight-region beg end))
                     (funcall ',fun beg end)))))
 
+;;* Outline support
+
+(defvar-local cells--previous-state nil
+  "A place to save variables before activating `cells-mode'.")
+
+(defun cells--outline-level ()
+  "The `outline-level' function used by `cells-mode'.
+At a cell boundary, returns the cell outline level, as determined
+by `cells-cell-markers'.  Otherwise, returns the sum of the
+outline level as determined by the major mode and the current
+cell level."
+  (let* ((at-boundary (looking-at-p (cells-boundary-regexp)))
+         (mm-level (if at-boundary 0 (funcall (car cells--previous-state))))
+         (cell-level (save-excursion
+                       (unless at-boundary (cells-backward-cell))
+                       (if (match-string 1)
+                           (- (match-end 1) (match-beginning 1))
+                         1))))
+    (+ cell-level mm-level)))
+
+;;* Minor mode
+
 ;;;###autoload
 (define-minor-mode cells-mode
   "Minor mode for cell-oriented code."
-  ;; TODO: integrate with outline-mode?
   :keymap (make-sparse-keymap)
   (let ((spec `((,(concat "\\(" (cells-boundary-regexp) "\\).*\n")
                  0 'cells-header-line append))))
     (if cells-mode
         (progn
+          (require 'outline)
+          (setq-local cells--previous-state (list outline-level
+                                                  outline-regexp
+                                                  outline-heading-end-regexp)
+                      outline-level 'cells--outline-level
+                      outline-regexp (rx (or (regexp (cells-boundary-regexp))
+                                             (regexp outline-regexp)))
+                      outline-heading-end-regexp "\n")
           (font-lock-add-keywords nil spec))
+      (setq-local outline-level (nth 0 cells--previous-state)
+                  outline-regexp (nth 1 cells--previous-state)
+                  outline-heading-end-regexp (nth 2 cells--previous-state))
       (font-lock-remove-keywords nil spec))
     (font-lock-flush)))
 
