@@ -2,14 +2,12 @@ cells.el
 ========
 
 This package lets you efficiently navigate, edit and execute code
-split into cells according to certain magic comments.
+split into cells according to certain magic comments.  If you have
+[Jupytext] or [Pandoc] installed, you can also open ipynb notebook
+files directly in Emacs.  They will be automatically converted to a
+script for editing, and converted back to notebook format when saving.
 
 ![Screenshot](https://user-images.githubusercontent.com/6500902/102713720-8c52dd80-42ca-11eb-8ea6-4e96a814be2b.png)
-
-If you have [Jupytext] or [Pandoc] installed, you can also directly
-open ipynb notebook files in Emacs.  They will be automatically
-converted to a script for editing, and converted back to notebook
-format when saving.
 
 By default, three styles of comments are recognized as cell boundaries:
 
@@ -22,10 +20,12 @@ By default, three styles of comments are recognized as cell boundaries:
 ```
 
 The first is what you get by exporting a notebook to a script on
-Jupyter's web interface or with the command `jupyter nbconvert --to
-python <FILE.ipynb>`.  The second style is compatible with Jupytext,
-among several other tools.  The third is in the spirit of Emacs's
-outline mode.
+Jupyter's web interface or with the command `jupyter nbconvert`.  The
+second style is compatible with Jupytext, among several other tools.
+The third is in the spirit of Emacs's outline mode.  Further percent
+signs or asterisks signify nested cells.  In fact, `cells-mode`
+doubles as a general-purpose enhancement of `outline-minor-mode`; see
+below for details.
 
 Editing commands
 ----------------
@@ -35,14 +35,15 @@ cells, this package provides a simple way to turn ordinary editing
 commands into “cell-aware” ones.  The `cells-command` function takes
 as argument a function that acts on a region, and returns an anonymous
 command that acts on the current cell.  Thus, one can redefine `C-c
-C-c` in Python mode to evaluate the current cell by doing the
+C-r` in Python mode to evaluate the current cell by doing the
 following:
 
 ``` elisp
 (define-key python-mode-map
-            (kbd "C-c C-c")
+            (kbd "C-c C-r")
             (cells-command 'python-shell-send-region))
 ```
+
 There is also a `cells-do` macro, which evaluates its body with the
 current cell bounds accessible as variables.  See the documentation
 for details.
@@ -54,9 +55,9 @@ Besides that, only three editing commands are provided:
 - `cells-mark-cell` marks the current cell and activates the region.
 
 Everything else is left up for the user to define with the mechanism
-explained above.  See below for a more substantial configuration
-example, which is specific for Jupyter mode but can be easily adapted
-to any other mode or language with a REPL in Emacs.
+explained above.  See below for more substantial configuration
+examples, some specific to Jupyter and others applicable to any mode
+or language with a REPL in Emacs.
 
 Minor mode
 ----------
@@ -67,10 +68,17 @@ A minor-mode, `cells-mode`, provides the following things:
 - The `cells-mode-map` keymap, a good place for your very own cell
   commands.
 - Outline mode integration: cell headers have outline level determined
-  by the number of percent signs or asterisks; within a cell, the
-  outline level is as determined by the major mode.  This provides
-  code folding and hierarchical navigation, among other things, when
-  `outline-minor-mode` is active.
+  by the number of percent signs or asterisks; within a cell, outline
+  headings are as determined by the major mode, but they are demoted
+  by an amount corresponding to the level of the containing cell.
+  This provides code folding and hierarchical navigation, among other
+  things, when `outline-minor-mode` is active.
+
+Many major modes provide an outline hierarchy based on code structure,
+and some people prefer to replace this with a hierarchy based on
+sectioning comments.  With `cells-mode` you get both things at the
+same time.  This may be useful even for code that is not organized as
+a notebook.
 
 Handling Jupyter notebook files
 -------------------------------
@@ -81,16 +89,16 @@ JSON-based ipynb format is done by an external tool, [Jupytext] by
 default, which needs to be installed separately.
 
 **Important notice:** The automatic format conversion on save hasn't
-been thoroughly tested.  In particular, it (probably) doesn't handle
-backups in the expected way.  Do not rely on its correctness!
+been thoroughly tested.  In particular, it might not handle backups in
+the expected way.  Do not rely on its correctness!
 
 Note also that the result cells of ipynb files are not retained in the
 conversion to script format.  This means that opening and then saving
 an ipynb file clears all cell outputs.
 
-Within an ipynb buffer, you can use the regular `write-file` command
-(`C-x C-w`) to save a copy in script format, as displayed on the
-screen.  Moreover, from any script file with cell separators
+With a converted ipynb buffer, you can use the regular `write-file`
+command (`C-x C-w`) to save a copy in script format, as displayed on
+the screen.  Moreover, from any script file with cell separators
 understood by Jupytext, you can call `cells-write-ipynb` to save a
 copy in notebook format.
 
@@ -100,7 +108,7 @@ Configuration examples
 ### Keybindings for cells-mode
 
 The following configuration snippet sets up cell navigation and
-evaluation functions when `cells-modes` is enabled.  Just adapt it to
+evaluation functions when `cells-mode` is enabled.  Just adapt it to
 your liking.
 
 - Navigate cells with `M-p` and `M-n`.
@@ -108,7 +116,7 @@ your liking.
 - Evaluate a cell with the same key combinations that would otherwise
   evaluate the region (but still acting on the region instead if it is
   active, as stipulated by the `:use-region` flag).  This is done for
-  a couple of different major modes via key remaps, which see.
+  a couple of different modes via key remaps, which see.
 
 ``` elisp
 (require 'cells)
@@ -147,15 +155,15 @@ Kernel: _r_estart, eval _a_bove, _z_: pop to
   ("z" jupyter-repl-pop-to-buffer :color blue)
   ("x" (progn (cells-mark-cell)
               (call-interactively 'execute-extended-command)))
-  ("SPC" cells-mark-cell)
+  ("C-SPC" cells-mark-cell)
   ("r" jupyter-repl-restart-kernel)
-  ("a" (cells-do (pulse-momentary-highlight-region (point-min) beg)
-                 (jupyter-eval-region (point-min) beg)))
-  ("e" (cells-do (pulse-momentary-highlight-region beg end)
-                 (jupyter-eval-region beg end)
+  ("a" (cells-do (pulse-momentary-highlight-region (point-min) start)
+                 (jupyter-eval-region (point-min) start)))
+  ("e" (cells-do (pulse-momentary-highlight-region start end)
+                 (jupyter-eval-region start end)
                  (cells-forward-cell)))
-  ("M-w" (cells-do (kill-ring-save beg end)))
-  ("C-w" (cells-do (kill-region beg end)))
+  ("M-w" (cells-do (kill-ring-save start end)))
+  ("C-w" (cells-do (kill-region start end)))
   ("q" nil :exit t))
 ```
 
@@ -164,7 +172,7 @@ the current cell as active region.  Thus, for instance, typing `x
 comment-dwim RET` in this hydra will comment out the current cell.
 
 Note that since `defhydra` is a macro and wraps the definition of a
-key in an interactive lambda when it's a sexp, we need to use
+key in an interactive lambda when it is a sexp, we need to use
 `cells-do` instead of `cells-command` above.
 
 ### Tweaking the ipynb conversion
