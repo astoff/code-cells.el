@@ -175,6 +175,29 @@ Note that since `defhydra` is a macro and wraps the definition of a
 key in an interactive lambda when it is a sexp, we need to use
 `cells-do` instead of `cells-command` above.
 
+### Speed keys
+
+Similarly to org-mode's [speed keys](https://orgmode.org/manual/Speed-Keys.html),
+the `cells-speed-key` function returns a key definition that only acts
+when the point is at the beginning of a cell boundary.  Since this is
+usually not an interesting place to insert text, you can assign short
+keybindings there.  A sample configuration is as follows:
+
+``` elisp
+(require 'cells)
+(let ((map cells-mode-map))
+  (define-key map "n" (cells-speed-key 'cells-forward-cell))
+  (define-key map "p" (cells-speed-key 'cells-backward-cell))
+  (define-key map "e" (cells-speed-key (cells-command 'your-favorite-eval-region)))
+  (define-key map (kbd "TAB") (cells-speed-key (lambda ()
+                                                 "Show/hide current cell"
+                                                 (interactive)
+                                                 (outline-minor-mode)
+                                                 (if (outline-invisible-p (line-end-position))
+                                                     (outline-show-subtree)
+                                                   (outline-hide-subtree))))))
+```
+
 ### Tweaking the ipynb conversion
 
 If relegating markdown cells to comment blocks offends your literate
