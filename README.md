@@ -177,28 +177,40 @@ key in an interactive lambda when it is a sexp, we need to use
 
 ### Tweaking the ipynb conversion
 
-The default settings translate notebooks to Jupytext's “percent”
-format, but this can be changed.  To convert to markdown, use to
-following:
+If relegating markdown cells to comment blocks offends your literate
+programmer sensibilities, try including the following in the YAML
+header of a converted notebook (and then save and revert it).  It will
+cause text cells to be displayed as multiline comments.
+
+``` yaml
+jupyter:
+  jupytext:
+    cell_markers: '"""'
+```
+
+It is also possible to convert notebooks to markdown or org format.
+For markdown, use the following:
 
 ``` elisp
-(setq cells-ipynb-convert-style '(("jupytext" "--to" "ipynb" "--from" "markdown")
+(setq cells-convert-ipynb-style '(("jupytext" "--to" "ipynb" "--from" "markdown")
                                   ("jupytext" "--to" "markdown" "--from" "ipynb")
                                   markdown-mode))
 ```
 
-To edit ipynb files as org documents, try using [Pandoc] like this:
+To edit ipynb files as org documents, try using [Pandoc] with the
+configuration below.  In combination with org-babel, this can provide
+a true Emacsesque notebook experience.
 
 ```elisp
-(setq cells-ipynb-convert-style '(("pandoc" "--to" "ipynb" "--from" "org")
+(setq cells-convert-ipynb-style '(("pandoc" "--to" "ipynb" "--from" "org")
                                   ("pandoc" "--to" "org" "--from" "ipynb")
                                   org-mode))
 ```
 
 A good reason to stick with Jupytext, though, is that it offers
-round-trip stability: if you save a script and then revert the buffer,
-the buffer shouldn't change.  With other tools, you may get some
-surprises.
+round-trip consistency: if you save a script and then revert the
+buffer, the buffer shouldn't change.  With other tools, you may get
+some surprises.
 
 Alternatives
 ------------
