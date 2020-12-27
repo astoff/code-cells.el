@@ -161,11 +161,13 @@ outline level as determined by the major mode and the current
 cell level."
   (let* ((at-boundary (looking-at-p (cells-boundary-regexp)))
          (mm-level (if at-boundary 0 (funcall (car cells--saved-vars))))
-         (cell-level (save-excursion
-                       (unless at-boundary (cells-backward-cell))
-                       (if (match-string 1)
-                           (- (match-end 1) (match-beginning 1))
-                         1))))
+         (cell-level (if (or at-boundary
+                             (save-excursion
+                               (re-search-backward (cells-boundary-regexp) nil t)))
+                         (if (match-string 1)
+                             (- (match-end 1) (match-beginning 1))
+                           1)
+                       0)))
     (+ cell-level mm-level)))
 
 (defface cells-header-line '((t :extend t :inherit header-line))
