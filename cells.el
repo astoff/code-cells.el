@@ -51,8 +51,8 @@
 ;;* Cell navigation
 
 (defcustom cells-boundary-markers
-  '((seq (* space) "%" (group (+ "%")))
-    (group (+ "*"))
+  '((seq (* space) "%" (group-n 1 (+ "%")))
+    (group-n 1 (+ "*"))
     (seq " In[" (* (any space digit)) "]:"))
   "A list of regular expressions in sexp form (see `rx').
 Each of regexp should match the content of a comment line which
@@ -175,7 +175,7 @@ cell level."
 
 (defun cells--font-lock-keywords ()
   "Font lock keywords to highlight cell boundaries."
-  `((,(concat "\\(" (cells-boundary-regexp) "\\).*\n")
+  `((,(rx (regexp (cells-boundary-regexp)) (* any) "\n")
      0 'cells-header-line append)))
 
 ;;;###autoload
