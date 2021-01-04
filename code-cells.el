@@ -41,7 +41,8 @@
 
 (require 'map)
 (require 'pulse)
-(require 'rx)
+(require 'subr-x)
+(eval-when-compile (require 'rx))
 
 (defgroup code-cells nil
   "Utilities for code split into cells."
@@ -51,21 +52,21 @@
 ;;* Cell navigation
 
 (defcustom code-cells-boundary-markers
-  '((seq (* space) "%" (group-n 1 (+ "%")))
-    (group-n 1 (+ "*"))
-    (seq " In[" (* (any space digit)) "]:"))
-  "A list of regular expressions in sexp form (see `rx').
-Each of regexp should match the content of a comment line which
-introduces a cell break.
-
-The length of the first capture determines the outline level."
+  (list (rx (* space) "%" (group-n 1 (+ "%")))
+        (rx (group-n 1 (+ "*")))
+        (rx " In[" (* (any space digit)) "]:"))
+  "List of regular expressions specifying cell boundaries.
+They should match immediately after a comment start at the
+beginning of a line.  The length of the first capture determines
+the outline level."
   :type '(repeat sexp))
 
 (defun code-cells-boundary-regexp ()
   "Return a regexp matching comment lines that serve as cell boundary."
-  (rx line-start
-      (+ (syntax comment-start))
-      (eval (cons 'or code-cells-boundary-markers))))
+  (concat (rx line-start (+ (syntax comment-start)))
+          "\\(?:"
+          (string-join code-cells-boundary-markers "\\|")
+          "\\)"))
 
 ;;;###autoload
 (defun code-cells-forward-cell (&optional arg)
