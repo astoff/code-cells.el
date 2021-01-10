@@ -6,6 +6,7 @@
 ;; Keywords: convenience, outlines
 ;; URL: https://github.com/astoff/code-cells.el
 ;; Package-Requires: ((emacs "27.1"))
+;; Version: 0.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -113,7 +114,7 @@ region is active, use its bounds instead.  In this case,
    (push-mark end nil t)))
 
 ;;;###autoload
-(defun code-cells-command (fun &optional docstring &rest options)
+(defun code-cells-command (fun &rest options)
   "Return an anonymous command that calls FUN on the current cell.
 
 FUN is a function that takes two character positions as argument.
@@ -126,19 +127,16 @@ on the region instead of the current cell when appropriate.
 If OPTIONS contains the keyword :pulse, provide visual feedback
 via `pulse-momentary-highlight-region'."
   (declare (doc-string 2))
-  (unless (stringp docstring)
-    (setq options (cons docstring options))
-    (setq docstring (concat
-                     "Call `" (symbol-name fun) "' on the current code cell."
-                     (when (member :use-region options)
-                       "\nIf region is active, use it instead."))))
   (eval `(lambda ()
-          ,docstring
-          (interactive)
-          (code-cells-do ,(car (member :use-region options))
-                         ,(when (member :pulse options)
-                            '(pulse-momentary-highlight-region start end))
-                         (funcall ',fun start end)))))
+           ,(concat
+             "Call `" (symbol-name fun) "' on the current code cell."
+             (when (member :use-region options)
+               "\nIf region is active, use it instead."))
+           (interactive)
+           (code-cells-do ,(car (member :use-region options))
+                          ,(when (member :pulse options)
+                             '(pulse-momentary-highlight-region start end))
+                          (funcall ',fun start end)))))
 
 (defun code-cells-speed-key (command)
   "Return a speed key definition, suitable for passing to `define-key'.
@@ -183,6 +181,8 @@ cell level."
   "Font lock keywords to highlight cell boundaries."
   `((,(rx (regexp (code-cells-boundary-regexp)) (* any) "\n")
      0 'code-cells-header-line append)))
+
+(defvar outline-heading-end-regexp)
 
 ;;;###autoload
 (define-minor-mode code-cells-mode
