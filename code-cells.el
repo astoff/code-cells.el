@@ -103,6 +103,8 @@ region is active, use its bounds instead.  In this case,
                     (progn (code-cells-forward-cell) (point))
                     (progn (code-cells-backward-cell) (point)))))
      (`(,using-region ,end ,start)
+      ;; Avoid compiler warnings if one of those is unused in body
+      (ignore using-region end start)
       ,@body)))
 
 ;;;###autoload
@@ -126,7 +128,6 @@ on the region instead of the current cell when appropriate.
 
 If OPTIONS contains the keyword :pulse, provide visual feedback
 via `pulse-momentary-highlight-region'."
-  (declare (doc-string 2))
   (eval `(lambda ()
            ,(concat
              "Call `" (symbol-name fun) "' on the current code cell."
@@ -155,11 +156,13 @@ COMMAND."
   "A place to save variables before activating `code-cells-mode'.")
 
 (defun code-cells--outline-level ()
-  "The `outline-level' function used by `code-cells-mode'.
-At a cell boundary, returns the cell outline level, as determined
-by `code-cells-boundary-markers'.  Otherwise, returns the sum of the
-outline level as determined by the major mode and the current
-cell level."
+  "Compute the outline level, taking code cells into account.
+To be used as the value of the variable `outline-level'.
+
+At a cell boundary, returns the cell outline level, as determined by
+`code-cells-boundary-markers'.  Otherwise, returns the sum of the
+outline level as determined by the major mode and the current cell
+level."
   (let* ((at-boundary (looking-at-p (code-cells-boundary-regexp)))
          (mm-level (if at-boundary
                        0
