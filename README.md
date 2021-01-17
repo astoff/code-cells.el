@@ -9,7 +9,7 @@ split into cells according to certain magic comments.  If you have
 files directly in Emacs.  They will be automatically converted to a
 script for editing, and converted back to notebook format when saving.
 
-![Screenshot](https://user-images.githubusercontent.com/6500902/102713720-8c52dd80-42ca-11eb-8ea6-4e96a814be2b.png)
+![Screenshot](https://user-images.githubusercontent.com/6500902/104836187-652d0300-58ac-11eb-836b-e91baa545fb0.png)
 
 By default, three styles of comments are recognized as cell boundaries:
 
