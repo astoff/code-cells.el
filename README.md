@@ -1,6 +1,8 @@
 code-cells.el
 =============
 
+[![MELPA](https://melpa.org/packages/code-cells-badge.svg)](https://melpa.org/#/code-cells)
+
 This package lets you efficiently navigate, edit and execute code
 split into cells according to certain magic comments.  If you have
 [Jupytext] or [Pandoc] installed, you can also open ipynb notebook
@@ -223,7 +225,7 @@ For markdown, use the following:
 
 To edit ipynb files as org documents, try using [Pandoc] with the
 configuration below.  In combination with org-babel, this can provide
-a true Emacsesque notebook experience.
+a more notebook-like experience, with interspersed code and results.
 
 ```elisp
 (setq code-cells-convert-ipynb-style '(("pandoc" "--to" "ipynb" "--from" "org")
@@ -239,15 +241,22 @@ some surprises.
 Alternatives
 ------------
 
-[python-cell.el](https://github.com/thisch/python-cell.el) provides
-similar cell editing commands.  It seems to be limited to Python, and
-is perhaps simpler to set up but less flexible.
+[python-cell.el] provides similar cell editing commands.  It seems to
+be limited to Python, and is perhaps simpler to set up but less
+flexible.
 
 With Jupytext's [paired notebook mode](https://jupytext.readthedocs.io/en/latest/paired-notebooks.html)
 it is possible to keep a notebook open in JupyterLab and simultaneously
 edit a script version in an external text editor.
 
-[jupytext]: https://github.com/mwouts/jupytext
-[pandoc]: https://pandoc.org/
+The [EIN] package allows to open ipynb files directly in Emacs with an
+UI similar to Jupyter notebooks.  Note that EIN also registers major
+modes for ipynb files; when installing both packages at the same time,
+you may need to adjust your `auto-mode-alist` manually.
+
+[ein]: https://github.com/dickmao/emacs-ipython-notebook
 [emacs-jupyter]: https://github.com/dzop/emacs-jupyter
 [hydra]: https://github.com/abo-abo/hydra
+[jupytext]: https://github.com/mwouts/jupytext
+[pandoc]: https://pandoc.org/
+[python-cell.el]: https://github.com/thisch/python-cell.el
