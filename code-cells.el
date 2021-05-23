@@ -139,6 +139,7 @@ via `pulse-momentary-highlight-region'."
                              '(pulse-momentary-highlight-region start end))
                           (funcall ',fun start end)))))
 
+;;;###autoload
 (defun code-cells-speed-key (command)
   "Return a speed key definition, suitable for passing to `define-key'.
 The resulting keybinding will only have any effect when the point
@@ -146,9 +147,9 @@ is at the beginning of a cell heading, in which case it executes
 COMMAND."
   (list 'menu-item nil command
         :filter (lambda (d)
-                  (if (and (bolp)
-                           (looking-at (code-cells-boundary-regexp)))
-                      d))))
+                  (when (and (bolp)
+                             (looking-at (code-cells-boundary-regexp)))
+                    d))))
 
 ;;; Minor mode
 
