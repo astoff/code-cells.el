@@ -1,4 +1,4 @@
-;;; code-cells.el --- Work with code split into cells and Jupyter notebooks -*- lexical-binding: t; -*-
+;;; code-cells.el --- Work with code split into cells, including Jupyter notebooks -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2021 Augusto Stoffel
 
@@ -33,8 +33,8 @@
 ;; Out of the box, there are no keybindings and, in fact, only a small
 ;; number of editing commands is provided.  Rather, the idea is that
 ;; you can create your own cell-aware commands from regular ones
-;; through the `code-cells-command' function and the `code-cells-do' macro.  See
-;; the README for configuration examples.  There is also a
+;; through the `code-cells-command' function and the `code-cells-do'
+;; macro.  See the README for configuration examples.  There is also a
 ;; `code-cells-mode' minor mode, which, among other things, provides
 ;; outline support.
 
@@ -50,7 +50,7 @@
   :group 'convenience
   :prefix "code-cells-")
 
-;;* Cell navigation
+;;; Cell navigation
 
 (defcustom code-cells-boundary-markers
   (list (rx (* space) "%" (group-n 1 (+ "%")))
@@ -150,7 +150,7 @@ COMMAND."
                            (looking-at (code-cells-boundary-regexp)))
                       d))))
 
-;;* Minor mode
+;;; Minor mode
 
 (defvar-local code-cells--saved-vars nil
   "A place to save variables before activating `code-cells-mode'.")
@@ -208,7 +208,7 @@ level."
     (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))
   (font-lock-flush))
 
-;;* Jupyter notebook conversion
+;;; Jupyter notebook conversion
 
 (defcustom code-cells-convert-ipynb-style
   '(("jupytext" "--to" "ipynb")
