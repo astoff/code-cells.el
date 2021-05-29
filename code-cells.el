@@ -53,7 +53,7 @@
 ;;; Cell navigation
 
 (defcustom code-cells-boundary-markers
-  (list (rx (* space) "%" (group-n 1 (+ "%")))
+  (list (rx "%" (group-n 1 (+ "%")))
         (rx (group-n 1 (+ "*")))
         (rx " In[" (* (any space digit)) "]:"))
   "List of regular expressions specifying cell boundaries.
@@ -64,7 +64,9 @@ the outline level."
 
 (defun code-cells-boundary-regexp ()
   "Return a regexp matching comment lines that serve as cell boundary."
-  (concat (rx line-start (+ (syntax comment-start)))
+  (concat (rx line-start)
+          (or comment-start-skip
+              (rx (+ (syntax comment-start)) (* (syntax whitespace))))
           "\\(?:"
           (string-join code-cells-boundary-markers "\\|")
           "\\)"))
@@ -87,6 +89,20 @@ forward."
   (interactive "p")
   (code-cells-forward-cell (- (or arg 1))))
 
+(defun code-cells--bounds (&optional count use-region)
+  "Return the bounds of the current code cell, as a cons.
+
+If USE-REGION is non-nil and the region is active, return the
+region bounds instead."
+  (if (and use-region (use-region-p))
+      (list (region-beginning) (region-end))
+    (save-excursion
+      (setq count (or count 1))
+      (let ((end (progn (code-cells-forward-cell (max count 1))
+                        (point))))
+        (code-cells-backward-cell (abs count))
+        (list (point) end)))))
+
 ;;;###autoload
 (defmacro code-cells-do (&rest body)
   "Find current cell bounds and evaluate BODY.
@@ -106,14 +122,16 @@ region is active, use its bounds instead.  In this case,
       ;; Avoid compiler warnings if one of those is unused in body
       (ignore using-region end start)
       ,@body)))
+(make-obsolete 'code-cells-do 'code-cells--bounds "2021-05-29")
 
 ;;;###autoload
-(defun code-cells-mark-cell ()
+(defun code-cells-mark-cell (&optional arg)
   "Put point at the beginning of this cell, mark at end."
-  (interactive)
-  (code-cells-do
-   (goto-char start)
-   (push-mark end nil t)))
+  (interactive "p")
+  (pcase-let ((`(,start ,end) (code-cells--bounds arg)))
+    (goto-char start)
+    (push-mark end nil t)))
+
 
 ;;;###autoload
 (defun code-cells-command (fun &rest options)
@@ -128,16 +146,13 @@ on the region instead of the current cell when appropriate.
 
 If OPTIONS contains the keyword :pulse, provide visual feedback
 via `pulse-momentary-highlight-region'."
-  (eval `(lambda ()
-           ,(concat
-             "Call `" (symbol-name fun) "' on the current code cell."
-             (when (member :use-region options)
-               "\nIf region is active, use it instead."))
-           (interactive)
-           (code-cells-do ,(car (member :use-region options))
-                          ,(when (member :pulse options)
-                             '(pulse-momentary-highlight-region start end))
-                          (funcall ',fun start end)))))
+  (let ((use-region (car (memq :use-region options)))
+        (pulse (car (memq :pulse options))))
+    (lambda ()
+      (interactive)
+      (pcase-let ((`(,start ,end) (code-cells--bounds nil use-region)))
+        (when pulse (pulse-momentary-highlight-region start end))
+        (funcall fun start end)))))
 
 ;;;###autoload
 (defun code-cells-speed-key (command)
