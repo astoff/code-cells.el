@@ -179,6 +179,49 @@ COMMAND."
                              (looking-at (code-cells-boundary-regexp)))
                     d))))
 
+;;; Code evaluation
+
+(defcustom code-cells-eval-region-commands
+  '((jupyter-repl-interaction-mode . jupyter-eval-region)
+    (python-mode . python-shell-send-region)
+    (emacs-lisp-mode . eval-region)
+    (lisp-interaction-mode . eval-region))
+  "Alist of commands to evaluate a region.
+The keys are major or minor modes and the values are functions
+taking region bounds as argument."
+  :type '(alist :key-type symbol :value-type symbol))
+
+;;;###autoload
+(defun code-cells-eval (start end)
+  "Evaluate code according to current modes.
+The first suitable function from `code-cells-eval-region-commands'
+is used to do the job.
+
+Interactively, evaluate the region, if active, otherwise the
+current code cell.  With a numeric prefix, evaluate that many
+code cells.
+
+Called from Lisp, evaluate region between START and END."
+  (interactive (code-cells--bounds (prefix-numeric-value current-prefix-arg) t))
+  (funcall
+   (or (seq-some (pcase-lambda (`(,mode . ,fun))
+                   (when (or (and (boundp mode) mode)
+                             (derived-mode-p mode))
+                     fun))
+                 code-cells-eval-region-commands)
+       (user-error
+        "No entry for the current modes in `code-cells-eval-region-commands'."))
+   start end)
+  (pulse-momentary-highlight-region start end))
+
+;;;###autoload
+(defun code-cells-eval-above (arg)
+  "Evaluate this and all above cells."
+  (interactive "p")
+  (code-cells-eval (point-min) (save-excursion
+                                 (code-cells-forward-cell arg)
+                                 (point))))
+
 ;;; Minor mode
 
 (defvar-local code-cells--saved-vars nil
@@ -236,6 +279,14 @@ level."
                 outline-heading-end-regexp (nth 2 code-cells--saved-vars))
     (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))
   (font-lock-flush))
+
+(let ((map (make-sparse-keymap)))
+  (define-key code-cells-mode-map "\C-c%" map)
+  (define-key map ";" 'code-cells-comment-or-uncomment)
+  (define-key map "@" 'code-cells-mark-cell)
+  (define-key map "b" 'code-cells-backward-cell)
+  (define-key map "f" 'code-cells-forward-cell)
+  (define-key map "e" 'code-cells-eval))
 
 ;;; Jupyter notebook conversion
 
