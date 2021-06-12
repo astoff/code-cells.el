@@ -132,6 +132,19 @@ region is active, use its bounds instead.  In this case,
     (goto-char start)
     (push-mark end nil t)))
 
+;;;###autoload
+(defun code-cells-comment-or-uncomment (&optional arg)
+  "Comment or uncomment the current code cell.
+
+ARG, if provided, is the number of comment characters to add or
+remove."
+  (interactive "P")
+  (pcase-let* ((`(,header ,end) (code-cells--bounds arg))
+               (start (save-excursion
+                        (goto-char header)
+                        (forward-line)
+                        (point))))
+    (comment-or-uncomment-region start end)))
 
 ;;;###autoload
 (defun code-cells-command (fun &rest options)
