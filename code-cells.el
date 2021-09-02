@@ -41,6 +41,7 @@
 ;;; Code:
 
 (require 'map)
+(require 'json)
 (require 'pulse)
 (require 'subr-x)
 (eval-when-compile (require 'rx))
@@ -333,10 +334,12 @@ program name followed by arguments."
 (defun code-cells-convert-ipynb ()
   "Convert buffer from ipynb format to a regular script."
   (goto-char (point-min))
-  (let* ((nb (json-parse-buffer))
+  (let* ((nb (cl-letf ;; Skip over the possibly huge "cells" section
+                 (((symbol-function 'json-read-array) 'forward-sexp))
+               (json-read)))
          (pt (point))
-         (lang (or (map-nested-elt nb '("metadata" "kernelspec" "language"))
-                   (map-nested-elt nb '("metadata" "jupytext" "main_language"))))
+         (lang (or (map-nested-elt nb '(metadata kernelspec language))
+                   (map-nested-elt nb '(metadata jupytext main_language))))
          (mode (or (nth 2 code-cells-convert-ipynb-style)
                    (intern (concat lang "-mode"))))
          (exit (code-cells--call-process t (nth 1 code-cells-convert-ipynb-style))))
