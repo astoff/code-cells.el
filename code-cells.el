@@ -282,6 +282,15 @@ level."
     (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))
   (font-lock-flush))
 
+;;;###autoload
+(defun code-cells-mode-maybe ()
+  "Turn on `code-cells-mode' if the buffer appears to contain cells.
+This function is useful when added to a major mode hook."
+    (when (save-excursion
+            (goto-char (point-min))
+            (re-search-forward (code-cells-boundary-regexp) 5000 t))
+      (code-cells-mode)))
+
 (let ((map (make-sparse-keymap)))
   (define-key code-cells-mode-map "\C-c%" map)
   (define-key map ";" 'code-cells-comment-or-uncomment)
