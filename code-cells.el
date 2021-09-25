@@ -218,7 +218,7 @@ Called from Lisp, evaluate region between START and END."
   (interactive (code-cells--bounds (prefix-numeric-value current-prefix-arg) t))
   (funcall
    (or (seq-some (pcase-lambda (`(,mode . ,fun))
-                   (when (or (and (boundp mode) mode)
+                   (when (or (and (boundp mode) (symbol-value mode))
                              (derived-mode-p mode))
                      fun))
                  code-cells-eval-region-commands)
