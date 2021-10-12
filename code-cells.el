@@ -55,7 +55,9 @@
 (require 'json)
 (require 'pulse)
 (require 'subr-x)
-(eval-when-compile (require 'rx))
+(eval-when-compile
+  (require 'cl-macs)
+  (require 'rx))
 
 (defgroup code-cells nil
   "Utilities for code split into cells."
