@@ -18,7 +18,7 @@ By default, three styles of comments are recognized as cell boundaries:
 
 # %% Optional title
 
-#* Optional title
+# * Optional title
 ```
 
 The first is what you get by exporting a notebook to a script on
