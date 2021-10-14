@@ -56,7 +56,7 @@
 (require 'pulse)
 (require 'subr-x)
 (eval-when-compile
-  (require 'cl-macs)
+  (require 'cl-lib)
   (require 'rx))
 
 (defgroup code-cells nil
@@ -264,7 +264,7 @@ level."
                        0)))
     (+ cell-level mm-level)))
 
-(defface code-cells-header-line '((t :extend t :inherit header-line))
+(defface code-cells-header-line '((t :extend t :overline t :inherit font-lock-comment-face))
   "Face used by `code-cells-mode' to highlight cell boundaries.")
 
 (defun code-cells--font-lock-keywords ()
