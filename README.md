@@ -1,5 +1,5 @@
-code-cells.el
-=============
+code-cells.el – Lightweight notebooks in Emacs
+==============================================
 
 [![MELPA](https://melpa.org/packages/code-cells-badge.svg)](https://melpa.org/#/code-cells)
 
@@ -9,7 +9,7 @@ split into cells according to certain magic comments.  If you have
 files directly in Emacs.  They will be automatically converted to a
 script for editing, and converted back to notebook format when saving.
 
-![Screenshot](https://user-images.githubusercontent.com/6500902/104836187-652d0300-58ac-11eb-836b-e91baa545fb0.png)
+![Screenshot](https://user-images.githubusercontent.com/6500902/148531077-052c7811-9083-41ce-b575-d43003e63363.png)
 
 By default, three styles of comments are recognized as cell boundaries:
 
@@ -44,7 +44,14 @@ The `code-cells-mode` minor mode provides the following things:
 
 `code-cells-mode` is automatically activated when opening an ipynb
 file, but of course you can activate it in any other buffer, either
-manually or through some hook.
+manually or through some hook.  There is also the
+`code-cells-mode-maybe` function, which activates the minor mode if
+the current buffer seems to contain cell boundaries.  It can be used
+like this, for instance:
+
+``` elisp
+(add-hook 'python-mode-hook 'code-cells-mode-maybe)
+```
 
 Editing commands
 ----------------
@@ -64,7 +71,7 @@ REPL, chosen according to the current major and minor modes.  The
 exact behavior is controlled by the `code-cells-eval-region-commands`
 variable, which can be customized to suit your needs.
 
-You might prefer shorter keybindings for some of these commands.  One
+You may prefer shorter keybindings for some of these commands.  One
 sensible possibility is to use `C-c C-c` to evaluate and `M-p`/`M-n`
 to navigate cells.  This can be achieved with the following
 configuration:
@@ -97,13 +104,7 @@ follows:
     (define-key map "n" (code-cells-speed-key 'code-cells-forward-cell))
     (define-key map "p" (code-cells-speed-key 'code-cells-backward-cell))
     (define-key map "e" (code-cells-speed-key 'code-cells-eval))
-    (define-key map (kbd "TAB") (code-cells-speed-key (lambda ()
-                                                        "Show/hide current cell"
-                                                        (interactive)
-                                                        (outline-minor-mode)
-                                                        (if (outline-invisible-p (line-end-position))
-                                                            (outline-show-subtree)
-                                                          (outline-hide-subtree)))))))
+    (define-key map (kbd "TAB") (code-cells-speed-key 'outline-cycle))))
 ```
 
 Handling Jupyter notebook files
@@ -175,6 +176,15 @@ The [EIN] package allows to open ipynb files directly in Emacs with an
 UI similar to Jupyter notebooks.  Note that EIN also registers major
 modes for ipynb files; when installing both packages at the same time,
 you may need to adjust your `auto-mode-alist` manually.
+
+
+Contributing
+------------
+
+Discussions, suggestions and code contributions are welcome!  I'm
+considering submitting this package to GNU ELPA in the future,
+therefore I would request a FSF copyright assignment for nontrivial
+contributions (above 15 lines of code).
 
 [ein]: https://github.com/dickmao/emacs-ipython-notebook
 [emacs-jupyter]: https://github.com/dzop/emacs-jupyter
