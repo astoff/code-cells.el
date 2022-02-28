@@ -10,7 +10,7 @@ directly in Emacs.  They will be automatically converted to a script
 for editing, and converted back to notebook format when saving.
 
 #+caption: Working on a Jupyter notebook as a plain Python script
-https://raw.githubusercontent.com/astoff/code-cells.el/images/screenshot.png
+[[https://raw.githubusercontent.com/astoff/code-cells.el/images/screenshot.png]]
 
 By default, three styles of comments are recognized as cell
 boundaries:
