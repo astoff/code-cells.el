@@ -139,23 +139,18 @@ region is active, use its bounds instead.  In this case,
       ,@body)))
 (make-obsolete 'code-cells-do 'code-cells--bounds "2021-05-29")
 
-(defun code-cells--bounds-of-cell-relative-from (&optional distance use-region)
+(defun code-cells--bounds-of-cell-relative-from (&optional distance)
   "Return the bounds of the code cell which is DISTANCE cells away
-from the current one.
-
-If USE-REGION is non-nil and the region is active, return the
-region bounds instead."
-  (if (and use-region (use-region-p))
-      (list (region-beginning) (region-end))
-    (save-excursion
-      (setq distance (or distance 0))
-      (when (/= 0 distance)
-        ;; Except when at the boundary, `(code-cells-forward-cell -1)' doesn't
-        ;; move out of current cell
-        (unless (looking-at-p (code-cells-boundary-regexp))
-          (code-cells-backward-cell))
-        (code-cells-forward-cell distance))
-      (code-cells--bounds))))
+from the current one."
+  (save-excursion
+    (setq distance (or distance 0))
+    (when (/= 0 distance)
+      ;; Except when at the boundary, `(code-cells-forward-cell -1)' doesn't
+      ;; move out of current cell
+      (unless (looking-at-p (code-cells-boundary-regexp))
+        (code-cells-backward-cell))
+      (code-cells-forward-cell distance))
+    (code-cells--bounds)))
 
 (defun code-cells-move-cell (arg)
   "Move current code cell vertically ARG cells.
