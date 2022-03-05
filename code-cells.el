@@ -139,6 +139,49 @@ region is active, use its bounds instead.  In this case,
       ,@body)))
 (make-obsolete 'code-cells-do 'code-cells--bounds "2021-05-29")
 
+(defun code-cells--bounds-of-cell-relative-from (&optional distance)
+  "Return the bounds of the code cell which is DISTANCE cells away
+from the current one."
+  (save-excursion
+    (setq distance (or distance 0))
+    (when (/= 0 distance)
+      ;; Except when at the boundary, `(code-cells-forward-cell -1)' doesn't
+      ;; move out of current cell
+      (unless (looking-at-p (code-cells-boundary-regexp))
+        (code-cells-backward-cell))
+      (code-cells-forward-cell distance))
+    (code-cells--bounds)))
+
+(defun code-cells-move-cell (arg)
+  "Move current code cell vertically ARG cells.
+Move up when ARG is negative and move down otherwise."
+  (dotimes (_ (abs arg))
+    ;; Don't move when either cell to swap is not a code cell (like a header
+    ;; cell)
+    (pcase-let
+        ((`(,current-beg ,current-end) (code-cells--bounds))
+         (`(,next-beg ,next-end) (code-cells--bounds-of-cell-relative-from
+                                  (/ arg (abs arg)))))
+      (when (and
+             (string-match-p (code-cells-boundary-regexp)
+                             (buffer-substring-no-properties current-beg current-end))
+             (string-match-p (code-cells-boundary-regexp)
+                             (buffer-substring-no-properties next-beg next-end)))
+        (transpose-regions current-beg current-end
+                           next-beg next-end)))))
+
+;;;###autoload
+(defun code-cells-move-cell-up (&optional arg)
+  "Move current code cell vertically up ARG cells."
+  (interactive "p")
+  (code-cells-move-cell (- arg)))
+
+;;;###autoload
+(defun code-cells-move-cell-down (&optional arg)
+  "Move current code cell vertically down ARG cells."
+  (interactive "p")
+  (code-cells-move-cell arg))
+
 ;;;###autoload
 (defun code-cells-mark-cell (&optional arg)
   "Put point at the beginning of this cell, mark at end."
