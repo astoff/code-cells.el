@@ -139,11 +139,10 @@ region is active, use its bounds instead.  In this case,
       ,@body)))
 (make-obsolete 'code-cells-do 'code-cells--bounds "2021-05-29")
 
-(defun code-cells--bounds-of-cell-relative-from (&optional distance)
+(defun code-cells--bounds-of-cell-relative-from (distance)
   "Return the bounds of the code cell which is DISTANCE cells away
 from the current one."
   (save-excursion
-    (setq distance (or distance 0))
     (when (/= 0 distance)
       ;; Except when at the boundary, `(code-cells-forward-cell -1)' doesn't
       ;; move out of current cell
@@ -152,35 +151,26 @@ from the current one."
       (code-cells-forward-cell distance))
     (code-cells--bounds)))
 
-(defun code-cells-move-cell (arg)
+(defun code-cells-move-cell-down (arg)
   "Move current code cell vertically ARG cells.
 Move up when ARG is negative and move down otherwise."
-  (dotimes (_ (abs arg))
-    ;; Don't move when either cell to swap is not a code cell (like a header
-    ;; cell)
-    (pcase-let
-        ((`(,current-beg ,current-end) (code-cells--bounds))
-         (`(,next-beg ,next-end) (code-cells--bounds-of-cell-relative-from
-                                  (/ arg (abs arg)))))
-      (when (and
-             (string-match-p (code-cells-boundary-regexp)
-                             (buffer-substring-no-properties current-beg current-end))
-             (string-match-p (code-cells-boundary-regexp)
-                             (buffer-substring-no-properties next-beg next-end)))
-        (transpose-regions current-beg current-end
-                           next-beg next-end)))))
+  (interactive "p")
+  (pcase-let ((`(,current-beg ,current-end) (code-cells--bounds))
+              (`(,next-beg ,next-end) (code-cells--bounds-of-cell-relative-from arg)))
+    (unless (save-excursion
+              (and (/= current-beg next-beg)
+                   (goto-char current-beg)
+                   (looking-at-p (code-cells-boundary-regexp))
+                   (goto-char next-beg)
+                   (looking-at-p (code-cells-boundary-regexp))))
+      (user-error "Can't move cell"))
+    (transpose-regions current-beg current-end next-beg next-end)))
 
 ;;;###autoload
 (defun code-cells-move-cell-up (&optional arg)
   "Move current code cell vertically up ARG cells."
   (interactive "p")
-  (code-cells-move-cell (- arg)))
-
-;;;###autoload
-(defun code-cells-move-cell-down (&optional arg)
-  "Move current code cell vertically down ARG cells."
-  (interactive "p")
-  (code-cells-move-cell arg))
+  (code-cells-move-cell-down (- arg)))
 
 ;;;###autoload
 (defun code-cells-mark-cell (&optional arg)
@@ -353,6 +343,8 @@ This function is useful when added to a major mode hook."
   (define-key map "@" 'code-cells-mark-cell)
   (define-key map "b" 'code-cells-backward-cell)
   (define-key map "f" 'code-cells-forward-cell)
+  (define-key map "B" 'code-cells-move-cell-up)
+  (define-key map "F" 'code-cells-move-cell-down)
   (define-key map "e" 'code-cells-eval))
 
 ;;; Jupyter notebook conversion

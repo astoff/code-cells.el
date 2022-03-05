@@ -61,6 +61,8 @@ that these commands do not require the minor mode to be active.
 - =C-c % e=: =code-cells-eval=
 - =C-c % b=: =code-cells-backward-cell=
 - =C-c % f=: =code-cells-forward-cell=
+- =C-c % B=: =code-cells-move-cell-up=
+- =C-c % F=: =code-cells-move-cell-down=
 - =C-c % ;=: =code-cells-comment-or-uncomment=
 - =C-c % @=: =code-cells-mark-cell=
 
