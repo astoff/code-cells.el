@@ -103,6 +103,18 @@ follows:
       (define-key map (kbd "TAB") (code-cells-speed-key 'outline-cycle))))
 #+end_src
 
+For Evil users, the following can be used:
+
+#+begin_src emacs-lisp
+  (with-eval-after-load 'code-cells
+    (let ((map code-cells-mode-map))
+      (define-key map [remap evil-search-next] (code-cells-speed-key 'code-cells-forward-cell)) ;; n
+      (define-key map [remap evil-paste-after] (code-cells-speed-key 'code-cells-backward-cell)) ;; p
+      (define-key map [remap evil-backward-word-begin] (code-cells-speed-key 'code-cells-eval-above)) ;; b
+      (define-key map [remap evil-forward-word-end] (code-cells-speed-key 'code-cells-eval)) ;; e
+      (define-key map [remap evil-jump-forward] (code-cells-speed-key 'outline-cycle)))) ;; TAB
+#+end_src
+
 ** Handling Jupyter notebook files
 With this package, you can edit Jupyter notebook (=*.ipynb=) files as
 if they were normal plain-text scripts.  Converting to and from the
