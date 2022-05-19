@@ -94,7 +94,8 @@ backward."
   (let ((page-delimiter (code-cells-boundary-regexp)))
     (forward-page arg)
     (unless (eobp)
-      (move-beginning-of-line 1))))
+      (move-beginning-of-line 1)
+      (forward-char))))
 
 ;;;###autoload
 (defun code-cells-backward-cell (&optional arg)
