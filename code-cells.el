@@ -391,6 +391,7 @@ program name followed by arguments."
 ;;;###autoload
 (defun code-cells-convert-ipynb ()
   "Convert buffer from ipynb format to a regular script."
+  (interactive)
   (goto-char (point-min))
   (let* ((nb (cl-letf ;; Skip over the possibly huge "cells" section
                  (((symbol-function 'json-read-array) 'forward-sexp))
