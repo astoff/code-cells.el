@@ -118,27 +118,6 @@ region bounds instead."
         (code-cells-backward-cell (abs count))
         (list (point) end)))))
 
-;;;###autoload
-(defmacro code-cells-do (&rest body)
-  "Find current cell bounds and evaluate BODY.
-Inside BODY, the variables `start' and `end' are bound to the
-limits of the current cell.
-
-If the first element of BODY is the keyword `:use-region' and the
-region is active, use its bounds instead.  In this case,
-`using-region' is non-nil in BODY."
-  `(pcase (if (and ,(eq (car body) :use-region) (use-region-p))
-              (list t (region-end) (region-beginning))
-            (save-excursion
-              (list nil
-                    (progn (code-cells-forward-cell) (point))
-                    (progn (code-cells-backward-cell) (point)))))
-     (`(,using-region ,end ,start)
-      ;; Avoid compiler warnings if one of those is unused in body
-      (ignore using-region end start)
-      ,@body)))
-(make-obsolete 'code-cells-do 'code-cells--bounds "2021-05-29")
-
 (defun code-cells--bounds-of-cell-relative-from (distance)
   "Return the bounds of the code cell which is DISTANCE cells away
 from the current one."
