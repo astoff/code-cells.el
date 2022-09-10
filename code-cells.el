@@ -53,6 +53,7 @@
 
 (require 'map)
 (require 'json)
+(require 'outline)
 (require 'pulse)
 (require 'subr-x)
 (eval-when-compile
@@ -296,15 +297,12 @@ level."
   `((,(rx (regexp (code-cells-boundary-regexp)) (* any) "\n")
      0 'code-cells-header-line append)))
 
-(defvar outline-heading-end-regexp)
-
 ;;;###autoload
 (define-minor-mode code-cells-mode
   "Minor mode for cell-oriented code."
   :keymap (make-sparse-keymap)
   (if code-cells-mode
       (progn
-        (require 'outline)
         (setq-local code-cells--saved-vars (list outline-level
                                                  outline-regexp
                                                  outline-heading-end-regexp)
