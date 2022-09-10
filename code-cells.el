@@ -105,6 +105,8 @@ With ARG, repeat this that many times.  If ARG is negative, move
 backward."
   (interactive "p")
   (let ((page-delimiter (code-cells-boundary-regexp)))
+    (when (and (< 0 arg) (looking-at page-delimiter))
+      (forward-char))
     (forward-page arg)
     (unless (eobp)
       (move-beginning-of-line 1))))
