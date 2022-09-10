@@ -303,17 +303,22 @@ level."
   :keymap (make-sparse-keymap)
   (if code-cells-mode
       (progn
-        (setq-local code-cells--saved-vars (list outline-level
-                                                 outline-regexp
-                                                 outline-heading-end-regexp)
-                    outline-level 'code-cells--outline-level
-                    outline-regexp (rx (or (regexp (code-cells-boundary-regexp))
-                                           (regexp outline-regexp)))
-                    outline-heading-end-regexp "\n")
+        (setq-local
+         code-cells--saved-vars (list outline-level
+                                      outline-regexp
+                                      outline-heading-end-regexp
+                                      paragraph-start)
+         outline-level 'code-cells--outline-level
+         outline-regexp (rx (or (regexp (code-cells-boundary-regexp))
+                                (regexp outline-regexp)))
+         outline-heading-end-regexp "\n"
+         paragraph-separate (rx (or (regexp paragraph-separate)
+                                    (regexp (code-cells-boundary-regexp)))))
         (font-lock-add-keywords nil (code-cells--font-lock-keywords)))
-    (setq-local outline-level (nth 0 code-cells--saved-vars)
-                outline-regexp (nth 1 code-cells--saved-vars)
-                outline-heading-end-regexp (nth 2 code-cells--saved-vars))
+    (setq-local outline-level (pop code-cells--saved-vars)
+                outline-regexp (pop code-cells--saved-vars)
+                outline-heading-end-regexp (pop code-cells--saved-vars)
+                paragraph-separate (pop code-cells--saved-vars))
     (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))
   (font-lock-flush))
 
