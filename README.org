@@ -20,7 +20,7 @@ boundaries:
 
   # %% Optional title
 
-  # * Optional title
+  #* Optional title
 #+end_example
 
 The first is what you get by exporting a notebook to a script on
@@ -28,6 +28,10 @@ Jupyter's web interface or with the command =jupyter nbconvert=.  The
 second style is compatible with Jupytext, among several other tools.
 The third is in the spirit of Emacs's outline mode.  Further percent
 signs or asterisks signify nested cells.
+
+*Note.* As of version 0.4, the “outline mode” style heading requires
+/no space/ between the comment character and the asterisk.  The
+previous behavior, which allowed spaces, led to many false positives.
 
 ** Minor mode
 The =code-cells-mode= minor mode provides the following things:

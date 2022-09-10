@@ -66,24 +66,36 @@
 
 ;;; Cell navigation
 
-(defcustom code-cells-boundary-markers
-  (list (rx "%" (group-n 1 (+ "%")))
-        (rx (group-n 1 (+ "*")))
-        (rx " In[" (* (any space digit)) "]:"))
+(defcustom code-cells-boundary-markers nil
   "List of regular expressions specifying cell boundaries.
 They should match immediately after a comment start at the
 beginning of a line.  The length of the first capture determines
 the outline level."
-  :type '(repeat sexp))
+  :type '(repeat regexp))
+(make-obsolete-variable 'code-cells-boundary-markers
+                        'code-cells-boundary-regexp
+                        "0.3")
+
+(defcustom code-cells-boundary-regexp
+  (rx (+ (syntax comment-start))
+      (or (seq (* (syntax whitespace)) "%" (group-n 1 (+ "%")))
+          (group-n 1 (+ "*"))
+          (seq " In[" (* (any space digit)) "]:")))
+  "Regular expression specifying cell boundaries.
+It should match at the beginning of a line.  The length of the
+first capture determines the outline level."
+  :type 'regexp)
 
 (defun code-cells-boundary-regexp ()
   "Return a regexp matching comment lines that serve as cell boundary."
-  (concat (rx line-start)
-          (or comment-start-skip
-              (rx (+ (syntax comment-start)) (* (syntax whitespace))))
-          "\\(?:"
-          (string-join code-cells-boundary-markers "\\|")
-          "\\)"))
+  (if code-cells-boundary-markers
+      (concat (rx line-start)
+              (or comment-start-skip
+                  (rx (+ (syntax comment-start)) (* (syntax whitespace))))
+              "\\(?:"
+              (string-join code-cells-boundary-markers "\\|")
+              "\\)")
+    (rx line-start (regexp code-cells-boundary-regexp))))
 
 ;;;###autoload
 (defun code-cells-forward-cell (&optional arg)
