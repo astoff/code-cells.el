@@ -1,7 +1,9 @@
 #+title: code-cells.el --- Lightweight notebooks in Emacs
 
+#+html: <p align="center">
 #+html: <a href="http://elpa.gnu.org/packages/code-cells.html"><img alt="GNU ELPA" src="https://elpa.gnu.org/packages/code-cells.svg"/></a>
 #+html: <a href="https://melpa.org/#/code-cells"><img alt="MELPA" src="https://melpa.org/packages/code-cells-badge.svg"/></a>
+#+html: </p>
 
 This package lets you efficiently navigate, edit and execute code
 split into cells according to certain magic comments.  If you have
@@ -29,7 +31,7 @@ second style is compatible with Jupytext, among several other tools.
 The third is in the spirit of Emacs's outline mode.  Further percent
 signs or asterisks signify nested cells.
 
-*Note.* As of version 0.4, the “outline mode” style heading requires
+*Note.* As of version 0.3, the “outline mode” style heading requires
 /no space/ between the comment character and the asterisk.  The
 previous behavior, which allowed spaces, led to many false positives.
 
