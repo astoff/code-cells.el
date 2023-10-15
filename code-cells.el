@@ -358,22 +358,21 @@ Returns the process exit code.  COMMAND is a list of strings, the
 program name followed by arguments."
   (unless (executable-find (car command))
     (error "Can't find %s" (car command)))
-  (let ((logfile (make-temp-file "emacs-cells-")))
-    (prog1
-        (apply #'call-process-region nil nil (car command) nil
-               (list buffer logfile) nil
-               (cdr command))
-      (with-temp-buffer
-        (insert-file-contents logfile)
-        (when (> (buffer-size) 0)
-          (display-warning 'code-cells (buffer-substring-no-properties
-                                        (point-min) (point-max))))
-        (delete-file logfile)))))
-
-;;;###autoload
-(defun code-cells-convert-ipynb ()
-  "Convert buffer from ipynb format to a regular script."
-  (interactive)
+  (let ((logfile (make-temp-file "emacs-code-cells-")))
+    (unwind-protect
+        (prog1
+            (apply #'call-process-region nil nil (car command) nil
+                   (list buffer logfile) nil
+                   (cdr command))
+          (with-temp-buffer
+            (insert-file-contents logfile)
+            (unless (zerop (buffer-size))
+              (lwarn 'code-cells :warning
+                     "Notebook conversion command %s said:\n%s"
+                     command
+                     (buffer-substring-no-properties
+                      (point-min) (point-max))))))
+      (delete-file logfile))))
   (goto-char (point-min))
   (let* ((nb (cl-letf ;; Skip over the possibly huge "cells" section
                  (((symbol-function 'json-read-array) 'forward-sexp))
