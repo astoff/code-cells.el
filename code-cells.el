@@ -102,6 +102,10 @@ forward."
 (defun code-cells--bounds (&optional count use-region)
   "Return the bounds of the current code cell, as a cons.
 
+If COUNT is non-nil, return instead a region containing COUNT
+cells and starting or ending with the current cell, depending on
+the sign of COUNT.
+
 If USE-REGION is non-nil and the region is active, return the
 region bounds instead."
   (if (and use-region (use-region-p))
@@ -114,8 +118,7 @@ region bounds instead."
         (list (point) end)))))
 
 (defun code-cells--bounds-of-cell-relative-from (distance)
-  "Return the bounds of the code cell which is DISTANCE cells away
-from the current one."
+  "Return the bounds of the cell DISTANCE cells away from the current one."
   (save-excursion
     (when (/= 0 distance)
       ;; Except when at the boundary, `(code-cells-forward-cell -1)' doesn't
@@ -148,7 +151,8 @@ Move up when ARG is negative and move down otherwise."
 
 ;;;###autoload
 (defun code-cells-mark-cell (&optional arg)
-  "Put point at the beginning of this cell, mark at end."
+  "Put point at the beginning of this cell, mark at end.
+If ARG is non-nil, mark that many cells."
   (interactive "p")
   (pcase-let ((`(,start ,end) (code-cells--bounds arg)))
     (goto-char start)
@@ -170,7 +174,7 @@ remove."
 
 ;;;###autoload
 (defun code-cells-command (fun &rest options)
-  "Return an anonymous command that calls FUN on the current cell.
+  "Return an anonymous command calling FUN on the current cell.
 
 FUN is a function that takes two character positions as argument.
 Most interactive commands that act on a region are of this form
@@ -232,13 +236,15 @@ Called from Lisp, evaluate region between START and END."
                      fun))
                  code-cells-eval-region-commands)
        (user-error
-        "No entry for the current modes in `code-cells-eval-region-commands'."))
+        "No entry for the current modes in `code-cells-eval-region-commands'"))
    start end)
   (pulse-momentary-highlight-region start end))
 
 ;;;###autoload
 (defun code-cells-eval-above (arg)
-  "Evaluate this and all above cells."
+  "Evaluate this and all above cells.
+ARG (interactively, the prefix argument) specifies how many
+additional cells after point to include."
   (interactive "p")
   (code-cells-eval (point-min) (save-excursion
                                  (code-cells-forward-cell arg)
