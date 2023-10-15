@@ -51,13 +51,12 @@
 
 ;;; Code:
 
-(require 'map)
 (require 'json)
 (require 'outline)
 (require 'pulse)
-(require 'subr-x)
 (eval-when-compile
   (require 'cl-lib)
+  (require 'let-alist)
   (require 'rx))
 
 (defgroup code-cells nil
@@ -393,8 +392,9 @@ program name followed by arguments."
                  (((symbol-function 'json-read-array) 'forward-sexp))
                (json-read)))
          (pt (point))
-         (lang (or (map-nested-elt nb '(metadata kernelspec language))
-                   (map-nested-elt nb '(metadata jupytext main_language))))
+         (lang (let-alist nb
+                 (or .metadata.kernelspec.language
+                     .metadata.jupytext.main_language)))
          (mode (or (nth 2 code-cells-convert-ipynb-style)
                    (intern (concat lang "-mode"))))
          (exit (code-cells--call-process t (nth 1 code-cells-convert-ipynb-style))))
