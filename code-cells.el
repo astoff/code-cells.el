@@ -51,7 +51,6 @@
 
 ;;; Code:
 
-(require 'json)
 (require 'outline)
 (require 'pulse)
 (eval-when-compile
@@ -334,20 +333,20 @@ This function is useful when added to a major mode hook."
 (defcustom code-cells-convert-ipynb-style
   '(("jupytext" "--to" "ipynb")
     ("jupytext" "--to" "auto:percent")
-    nil
+    code-cells--guess-mode
     code-cells-convert-ipynb-hook)
   "Determines how to convert ipynb files for editing.
 The first two entries are lists of strings: the command name and
 arguments used, respectively, to convert to and from ipynb
 format.
 
-The third entry, if present, specificies the major mode
-called after converting from ipynb.  If omitted, the major mode
-is determined from the notebook's language.
+The third entry is a function called with no arguments to
+determine the major mode to be called.  The default setting tries
+to guess it from the notebook metadata.
 
 The fourth entry, also optional, is a hook run after the new
 major mode is activated."
-  :type '(list sexp sexp sexp sexp))
+  :type '(list (repeat string) (repeat string) function symbol))
 
 (defvar code-cells-convert-ipynb-hook '(code-cells-mode)
   "Hook used in the default `code-cells-convert-ipynb-style'.")
@@ -373,23 +372,40 @@ program name followed by arguments."
                      (buffer-substring-no-properties
                       (point-min) (point-max))))))
       (delete-file logfile))))
+
+(defun code-cells--guess-mode ()
+  "Guess major mode associated to the current ipynb buffer."
+  (require 'json)
+  (declare-function json-read "json.el")
   (goto-char (point-min))
   (let* ((nb (cl-letf ;; Skip over the possibly huge "cells" section
                  (((symbol-function 'json-read-array) 'forward-sexp))
                (json-read)))
-         (pt (point))
          (lang (let-alist nb
                  (or .metadata.kernelspec.language
                      .metadata.jupytext.main_language)))
-         (mode (or (nth 2 code-cells-convert-ipynb-style)
-                   (intern (concat lang "-mode"))))
-         (exit (code-cells--call-process t (nth 1 code-cells-convert-ipynb-style))))
-    (unless (eq 0 exit)
-      (delete-region pt (point-max))
+         (mode (intern (concat lang "-mode"))))
+    (alist-get mode (bound-and-true-p major-mode-remap-alist) mode)))
+
+;;;###autoload
+(defun code-cells-convert-ipynb ()
+  "Convert buffer from ipynb format to a regular script."
+  (interactive)
+  (let* ((mode (funcall (or (nth 2 code-cells-convert-ipynb-style)
+                            (progn      ;For backwards compatibility with v0.3
+                              (lwarn 'code-cells :warning "\
+The third entry of `code-cells-convert-ipynb-style' should not be nil.")
+                              #'code-cells--guess-mode))))
+         (exit (progn
+                 (goto-char (point-min))
+                 (code-cells--call-process t (nth 1 code-cells-convert-ipynb-style)))))
+    (unless (zerop exit)
+      (delete-region (point-min) (point))
       (error "Error converting notebook (exit code %s)" exit))
-    (delete-region (point-min) pt)
+    (delete-region (point) (point-max))
+    (goto-char (point-min))
     (set-buffer-modified-p nil)
-    (setq-local write-file-functions '(code-cells-write-ipynb))
+    (add-hook 'write-file-functions #'code-cells-write-ipynb 80 t)
     (when (fboundp mode)
       (funcall mode)
       (run-hooks (nth 3 code-cells-convert-ipynb-style)))))
