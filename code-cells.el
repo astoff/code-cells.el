@@ -207,7 +207,7 @@ COMMAND."
 ;;; Code evaluation
 
 (defcustom code-cells-eval-region-commands
-  '((jupyter-repl-interaction-mode . jupyter-eval-region)
+  `((jupyter-repl-interaction-mode . ,(apply-partially 'jupyter-eval-region nil))
     (python-mode . python-shell-send-region)
     (emacs-lisp-mode . eval-region)
     (lisp-interaction-mode . eval-region))
