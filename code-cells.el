@@ -98,7 +98,7 @@ forward."
   (interactive "p")
   (code-cells-forward-cell (- (or arg 1))))
 
-(defun code-cells--bounds (&optional count use-region)
+(defun code-cells--bounds (&optional count use-region no-header)
   "Return the bounds of the current code cell, as a cons.
 
 If COUNT is non-nil, return instead a region containing COUNT
@@ -106,14 +106,17 @@ cells and starting or ending with the current cell, depending on
 the sign of COUNT.
 
 If USE-REGION is non-nil and the region is active, return the
-region bounds instead."
+region bounds instead.
+
+If NO-HEADER is non-nil, do not include the cell boundary line."
   (if (and use-region (use-region-p))
       (list (region-beginning) (region-end))
+    (setq count (or count 1))
     (save-excursion
-      (setq count (or count 1))
       (let ((end (progn (code-cells-forward-cell (max count 1))
                         (point))))
         (code-cells-backward-cell (abs count))
+        (when no-header (forward-line))
         (list (point) end)))))
 
 (defun code-cells--bounds-of-cell-relative-from (distance)
@@ -228,7 +231,9 @@ current code cell.  With a numeric prefix, evaluate that many
 code cells.
 
 Called from Lisp, evaluate region between START and END."
-  (interactive (code-cells--bounds (prefix-numeric-value current-prefix-arg) t))
+  (interactive (code-cells--bounds (prefix-numeric-value current-prefix-arg)
+                                   'use-region
+                                   'no-header))
   (funcall
    (or (seq-some (pcase-lambda (`(,mode . ,fun))
                    (when (or (and (boundp mode) (symbol-value mode))
