@@ -157,7 +157,7 @@ For markdown, use the following:
 #+begin_src emacs-lisp
   (setq code-cells-convert-ipynb-style '(("jupytext" "--to" "ipynb" "--from" "markdown")
                                          ("jupytext" "--to" "markdown" "--from" "ipynb")
-                                         (lamdba () #'markdown-mode)))
+                                         (lambda () #'markdown-mode)))
 #+end_src
 
 To edit ipynb files as org documents, try using [[https://pandoc.org/][Pandoc]] with the
