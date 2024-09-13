@@ -175,6 +175,13 @@ remove."
     (comment-or-uncomment-region start end)))
 
 ;;;###autoload
+(defun code-cells-delete-cell ()
+  "Delete the current code cell."
+  (interactive)
+  (let* ((reg (code-cells--bounds)))
+    (apply 'delete-region reg)))
+
+;;;###autoload
 (defun code-cells-command (fun &rest options)
   "Return an anonymous command calling FUN on the current cell.
 
@@ -330,6 +337,7 @@ This function is useful when added to a major mode hook."
   (define-key map "@" 'code-cells-mark-cell)
   (define-key map "b" 'code-cells-backward-cell)
   (define-key map "f" 'code-cells-forward-cell)
+  (define-key map "d" 'code-cells-delete-cell)
   (define-key map "B" 'code-cells-move-cell-up)
   (define-key map "F" 'code-cells-move-cell-down)
   (define-key map "e" 'code-cells-eval))
