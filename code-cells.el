@@ -67,7 +67,6 @@
   (rx line-start
       (+ (syntax comment-start))
       (or (seq (* (syntax whitespace)) "%" (group-n 1 (+ "%")))
-          (group-n 1 (+ "*"))
           (seq " In[" (* (any space digit)) "]:")))
   "Regular expression specifying cell boundaries.
 It should match at the beginning of a line.  The length of the

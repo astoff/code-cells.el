@@ -6,36 +6,31 @@
 #+html: </p>
 
 This package lets you efficiently navigate, edit and execute code
-split into cells according to certain magic comments.  If you have
-[[https://github.com/mwouts/jupytext][Jupytext]] or [[https://pandoc.org/][Pandoc]] installed, you can also open ipynb notebook files
-directly in Emacs.  They will be automatically converted to a script
-for editing, and converted back to notebook format when saving.
+split into cells according to certain magic comments.  Moreover, if
+you have [[https://github.com/mwouts/jupytext][Jupytext]] or [[https://pandoc.org/][Pandoc]] installed, you can also open ipynb
+notebook files directly in Emacs.  They will be automatically
+converted to a script for editing, and converted back to notebook
+format when saving.
 
 #+caption: Working on a Jupyter notebook as a plain Python script
 [[https://raw.githubusercontent.com/astoff/code-cells.el/images/screenshot.png]]
 
-By default, three styles of comments are recognized as cell
-boundaries:
+By default, the following kinds of comment lines are recognized as
+cell boundaries:
 
 #+begin_example
   # In[<number>]:
-
   # %% Optional title
-
-  #* Optional title
 #+end_example
 
 The first is what you get by exporting a notebook to a script on
 Jupyter's web interface or with the command =jupyter nbconvert=.  The
 second style is compatible with Jupytext, among several other tools.
-The third is in the spirit of Emacs's outline mode.  Further percent
-signs or asterisks signify nested cells.
-
-*Note.* As of version 0.3, the “outline mode” style heading requires
-/no space/ between the comment character and the asterisk.  The
-previous behavior, which allowed spaces, led to many false positives.
+More percent signs signify nested cells.  See section “Customization”
+below to learn how to change the cell boundary pattern.
 
 ** Minor mode
+
 The =code-cells-mode= minor mode provides the following things:
 
 - Fontification of cell boundaries.
@@ -103,8 +98,66 @@ following configuration:
       (keymap-set map "<remap> <jupyter-eval-line-or-region>" 'code-cells-eval)))
 #+end_src
 
+** Customization
+
+Type =M-x customize-group RET code-cells RET= to see a listing of all
+customization options.
+
+The most important option is =code-cells-boundary-regexp=, which
+determines which lines of a buffer should be regarded as a cell
+boundary.  Some alternatives to the default value include:
+
+- ="^#\\(#+\\)"=: This recognizes lines starting with 2 or more hash
+  characters as cell boundaries, which is an interesting option, say,
+  for Python:
+  #+begin_src python
+    ## Cell title (optional)
+    # Some commentary, which normally starts with
+    # a single hash character.
+    print("hello")
+  #+end_src
+- ="^;;\\(;+\\) "=: This recognizes lines starting with 3 or more
+  semicolons as cell boundaries, which is an interesting option, say,
+  for Emacs Lisp code split into sections:
+  #+begin_src emacs-lisp
+    ;;; Section title
+    ;; Some commentary, which by convention starts
+    ;; with double semicolons.
+    (message "hello")
+  #+end_src
+- ="^\\s<+\\(\\*+\\)"=: This regular expression recognizes lines of
+  the following form as cell boundaries:
+  #+begin_example python
+    #*
+    #**
+    #***
+  #+end_example
+  This implements a kind of "reverse literate programming" where the
+  prose part is behind comments and can have Org-like syntax (the
+  number of asterisks determines the heading level).
+
+As usual, you can customize =code-cells-boundary-regexp= globally, or
+change it for a single major mode, for instance with
+
+#+begin_src emacs-lisp
+(add-hook 'emacs-lisp-mode-hook
+          (lambda () (setq-local code-cells-boundary-regexp "^;;\\(;+\\)")))
+#+end_src
+
+or even modify it in a single project using [[https://www.gnu.org/software/emacs/manual/html_mono/elisp.html#Directory-Local-Variables][directory-local variables]],
+e.g. by typing the following:
+
+#+begin_example
+  M-x add-dir-local-variable RET python-mode RET code-cells-boundary-regexp RET "^#\\(#+\\)" RET
+#+end_example
+
+*Note:* Until version 0.4, the third cell boundary style above was
+included in the default settings.  Use the suggested customization to
+recover the old behavior.
+
 ** Speed keys
-Similarly to org-mode's [[https://orgmode.org/manual/Speed-Keys.html][speed keys]], the =code-cells-speed-key=
+
+Similarly to Org mode's [[https://orgmode.org/manual/Speed-Keys.html][speed keys]], the =code-cells-speed-key=
 function returns a key definition that only acts when the point is at
 the beginning of a cell boundary.  Since this is usually not an
 interesting place to insert text, you can assign short keybindings
@@ -135,6 +188,7 @@ For Evil users, the following can be used:
 #+end_src
 
 ** Handling Jupyter notebook files
+
 With this package, you can edit Jupyter notebook (=*.ipynb=) files as
 if they were normal plain-text scripts.  Converting to and from the
 JSON-based ipynb format is done by an external tool, [[https://github.com/mwouts/jupytext][Jupytext]] by
@@ -151,19 +205,20 @@ separators understood by Jupytext, you can call
 =code-cells-write-ipynb= to save a copy in notebook format.
 
 *** Tweaking the ipynb conversion
+
 If relegating markdown cells to comment blocks offends your literate
 programmer sensibilities, try including the following in the YAML
 header of a converted notebook (and then save and revert it).  It will
 cause text cells to be displayed as multiline comments.
 
-#+begin_example
+#+begin_src yaml
   jupyter:
     jupytext:
       cell_markers: '"""'
-#+end_example
+#+end_src
 
-It is also possible to convert notebooks to markdown or org format.
-For markdown, use the following:
+It is also possible to convert notebooks to markdown or Org mode
+format.  For markdown, use the following:
 
 #+begin_src emacs-lisp
   (setq code-cells-convert-ipynb-style '(("jupytext" "--to" "ipynb" "--from" "markdown")
@@ -171,7 +226,7 @@ For markdown, use the following:
                                          (lambda () #'markdown-mode)))
 #+end_src
 
-To edit ipynb files as org documents, try using [[https://pandoc.org/][Pandoc]] with the
+To edit ipynb files as Org documents, try using [[https://pandoc.org/][Pandoc]] with the
 configuration below.  In combination with org-babel, this can provide
 a more notebook-like experience, with interspersed code and results.
 
@@ -187,6 +242,7 @@ buffer, the buffer shouldn't change.  With other tools, you may get
 some surprises.
 
 ** Alternatives
+
 [[https://github.com/thisch/python-cell.el][python-cell.el]] provides similar cell editing commands.  It seems to be
 limited to Python code.
 
@@ -200,6 +256,7 @@ modes for ipynb files; when installing both packages at the same time,
 you may need to adjust your =auto-mode-alist= manually.
 
 ** Contributing
+
 Discussions, suggestions and code contributions are welcome! Since
 this package is part of GNU ELPA, nontrivial contributions (above 15
 lines of code) require a copyright assignment to the FSF.
