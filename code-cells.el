@@ -138,6 +138,44 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
       (code-cells-forward-cell distance))
     (code-cells--bounds)))
 
+;;; Command-generating functions
+
+;;;###autoload
+(defun code-cells-command (fun &rest options)
+  "Return an anonymous command calling FUN on the current cell.
+
+FUN must be a function that takes two character positions as argument.
+Most interactive commands that act on a region are of this form and
+can be used here.
+
+If OPTIONS contains the keyword :use-region, the command will act
+on the region instead of the current cell when appropriate.
+
+If OPTIONS contains the keyword :pulse, provide visual feedback
+via `pulse-momentary-highlight-region'."
+  (let ((use-region (car (memq :use-region options)))
+        (pulse (car (memq :pulse options))))
+    (lambda ()
+      (interactive)
+      (pcase-let ((`(,start ,end) (code-cells--bounds nil use-region)))
+        (when pulse (pulse-momentary-highlight-region start end))
+        (funcall fun start end)))))
+
+;;;###autoload
+(defun code-cells-speed-key (command)
+  "Return a speed key definition, suitable for passing to `define-key'.
+The resulting keybinding will only have any effect when the point
+is at the beginning of a cell heading, in which case it executes
+COMMAND."
+  (list 'menu-item nil command
+        :filter (lambda (d)
+                  (when (and (bolp)
+                             (looking-at code-cells-boundary-regexp))
+                    d))))
+
+;;; Text manipulation commands
+
+;;;###autoload
 (defun code-cells-move-cell-down (arg)
   "Move current code cell vertically ARG cells.
 Move up when ARG is negative and move down otherwise."
@@ -181,39 +219,6 @@ remove."
                         (forward-line)
                         (point))))
     (comment-or-uncomment-region start end)))
-
-;;;###autoload
-(defun code-cells-command (fun &rest options)
-  "Return an anonymous command calling FUN on the current cell.
-
-FUN is a function that takes two character positions as argument.
-Most interactive commands that act on a region are of this form
-and can be used here.
-
-If OPTIONS contains the keyword :use-region, the command will act
-on the region instead of the current cell when appropriate.
-
-If OPTIONS contains the keyword :pulse, provide visual feedback
-via `pulse-momentary-highlight-region'."
-  (let ((use-region (car (memq :use-region options)))
-        (pulse (car (memq :pulse options))))
-    (lambda ()
-      (interactive)
-      (pcase-let ((`(,start ,end) (code-cells--bounds nil use-region)))
-        (when pulse (pulse-momentary-highlight-region start end))
-        (funcall fun start end)))))
-
-;;;###autoload
-(defun code-cells-speed-key (command)
-  "Return a speed key definition, suitable for passing to `define-key'.
-The resulting keybinding will only have any effect when the point
-is at the beginning of a cell heading, in which case it executes
-COMMAND."
-  (list 'menu-item nil command
-        :filter (lambda (d)
-                  (when (and (bolp)
-                             (looking-at code-cells-boundary-regexp))
-                    d))))
 
 ;;; Code evaluation
 
