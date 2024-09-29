@@ -63,8 +63,6 @@
   :group 'convenience
   :prefix "code-cells-")
 
-;;; Cell navigation
-
 (defcustom code-cells-boundary-regexp
   (rx line-start
       (+ (syntax comment-start))
@@ -76,6 +74,16 @@ It should match at the beginning of a line.  The length of the
 first capture determines the outline level."
   :type 'regexp
   :safe #'stringp)
+
+(defcustom code-cells-major-mode-outline-min-level 0
+  "Minimal level of major-mode outline headings.
+`code-cells-mode' integrates with `outline-minor-mode' by combining
+major-mode-defined outline levels with cell boundaries.  Major mode
+headings are demoted by at least this amount."
+  :type 'natnum
+  :safe #'stringp)
+
+;;; Cell navigation
 
 ;;;###autoload
 (defun code-cells-forward-cell (&optional arg)
@@ -268,19 +276,21 @@ At a cell boundary, returns the cell outline level, as determined by
 `code-cells-boundary-regexp'.  Otherwise, returns the sum of the
 outline level as determined by the major mode and the current cell
 level."
-  (let* ((at-boundary (looking-at-p code-cells-boundary-regexp))
-         (mm-level (if at-boundary
-                       0
-                     (funcall (car code-cells--saved-vars))))
+  (let* ((at-boundary (looking-at code-cells-boundary-regexp))
          (cell-level (if (or at-boundary
                              (save-excursion
                                (re-search-backward
                                 code-cells-boundary-regexp nil t)))
-                         (if (match-string 1)
+                         (if (match-beginning 1)
                              (- (match-end 1) (match-beginning 1))
                            1)
-                       0)))
-    (+ cell-level mm-level)))
+                       0))
+         (mm-level (and (not at-boundary)
+                        (looking-at (cadr code-cells--saved-vars))
+                        (funcall (car code-cells--saved-vars)))))
+    (if mm-level
+        (+ (max cell-level code-cells-major-mode-outline-min-level) mm-level)
+      cell-level)))
 
 (defface code-cells-header-line '((t :extend t :overline t :inherit font-lock-comment-face))
   "Face used by `code-cells-mode' to highlight cell boundaries.")
