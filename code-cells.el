@@ -5,7 +5,7 @@
 ;; Author: Augusto Stoffel <arstoffel@gmail.com>
 ;; Keywords: convenience, outlines
 ;; URL: https://github.com/astoff/code-cells.el
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") (compat "29.1"))
 ;; Version: 0.4
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -108,9 +108,10 @@ forward."
 (defun code-cells--bounds (&optional count use-region no-header)
   "Return the bounds of the current code cell, as a 2-element list.
 
-If COUNT is non-nil, return instead a region containing COUNT
-cells and starting or ending with the current cell, depending on
-the sign of COUNT.
+If COUNT is non-nil, return instead a region containing COUNT cells and
+starting or ending with the current cell, depending on the sign of
+COUNT.  The values 0 and -1 have a special meaning: they stand for the
+half of the current cell below respectively above the current line.
 
 If USE-REGION is non-nil and the region is active, return the
 region bounds instead.
@@ -120,11 +121,16 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
       (list (region-beginning) (region-end))
     (setq count (or count 1))
     (save-excursion
-      (let ((end (progn (code-cells-forward-cell (max count 1))
+      (let ((bol (pos-bol))
+            (end (progn (code-cells-forward-cell
+                         (if (cl-plusp count) count 1))
                         (point))))
         (code-cells-backward-cell (abs count))
         (when no-header (forward-line))
-        (list (point) end)))))
+        (pcase count
+          (0 (list bol end))
+          (-1 (list (point) bol))
+          (_ (list (point) end)))))))
 
 (defun code-cells--neighbor-bounds (distance)
   "Return the bounds of the cell DISTANCE cells away from the current one."

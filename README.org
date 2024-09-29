@@ -98,6 +98,13 @@ following configuration:
       (keymap-set map "<remap> <jupyter-eval-line-or-region>" 'code-cells-eval)))
 #+end_src
 
+Finally, a remark on prefix arguments.  For most commands, the logic
+is that the absolute value of the numeric prefix stipulates the number
+of cells around the current cell to act on, with the sign determining
+whether to include cells above or below it.  The numeric prefixes 0
+and -1 have a special meaning: they tell to act on the half of the
+current cell below respective above the current line.
+
 ** Customization
 
 Type =M-x customize-group RET code-cells RET= to see a listing of all
