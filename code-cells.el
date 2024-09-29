@@ -106,7 +106,7 @@ forward."
   (code-cells-forward-cell (- (or arg 1))))
 
 (defun code-cells--bounds (&optional count use-region no-header)
-  "Return the bounds of the current code cell, as a cons.
+  "Return the bounds of the current code cell, as a 2-element list.
 
 If COUNT is non-nil, return instead a region containing COUNT
 cells and starting or ending with the current cell, depending on
@@ -126,7 +126,7 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
         (when no-header (forward-line))
         (list (point) end)))))
 
-(defun code-cells--bounds-of-cell-relative-from (distance)
+(defun code-cells--neighbor-bounds (distance)
   "Return the bounds of the cell DISTANCE cells away from the current one."
   (save-excursion
     (when (/= 0 distance)
@@ -180,7 +180,7 @@ COMMAND."
 Move up when ARG is negative and move down otherwise."
   (interactive "p")
   (pcase-let ((`(,current-beg ,current-end) (code-cells--bounds))
-              (`(,next-beg ,next-end) (code-cells--bounds-of-cell-relative-from arg)))
+              (`(,next-beg ,next-end) (code-cells--neighbor-bounds arg)))
     (unless (save-excursion
               (and (/= current-beg next-beg)
                    (goto-char current-beg)
@@ -290,23 +290,31 @@ With a prefix argument ARG, act on that many cells."
       (goto-char start)
       (code-cells-forward-cell -2))))
 
-;;;###autoload
-(defun code-cells-eval-above (arg)
-  "Evaluate this and all above cells.
-ARG (interactively, the prefix argument) specifies how many
-additional cells after point to include."
-  (interactive "p")
-  (pcase-let* ((`(_ ,end) (code-cells--bounds arg nil t)))
-    (code-cells-eval (point-min) end)))
+(defun code-cells--above-or-below-bound (raw)
+  "Evaluation bound for the given RAW prefix argument."
+  (list
+   (pcase (- (prefix-numeric-value raw))
+     (0 (pos-bol))
+     ((and (pred cl-plusp) arg) (car (code-cells--neighbor-bounds arg)))
+     (arg (cadr (code-cells--neighbor-bounds arg))))))
 
 ;;;###autoload
-(defun code-cells-eval-below (arg)
+(defun code-cells-eval-above (point)
+  "Evaluate all cells above the current one.
+With a prefix argument, exclude that many extra cells.
+
+From Lisp, just evaluate from beginning of buffer to POINT."
+  (interactive (code-cells--above-or-below-bound current-prefix-arg))
+  (code-cells-eval (point-min) point))
+
+;;;###autoload
+(defun code-cells-eval-below (point)
   "Evaluate the current cell and all below.
-ARG (interactively, the prefix argument) specifies how many
-cells after the current one to skip."
-  (interactive "p")
-  (pcase-let* ((`(,start _) (code-cells--bounds arg nil t)))
-    (code-cells-eval start (point-max))))
+With a prefix argument, include that many extra cells.
+
+From Lisp, just evaluate from POINT to end of buffer."
+  (interactive (code-cells--above-or-below-bound current-prefix-arg))
+  (code-cells-eval point (point-max)))
 
 ;;;###autoload
 (defun code-cells-eval-whole-buffer ()
