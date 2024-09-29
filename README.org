@@ -60,17 +60,28 @@ like this, for instance:
 #+end_src
 
 ** Editing commands
-The following editing and navigation commands are provided.  Their
-keybindings in =code-cells-mode-map= are also shown.  Note, however,
-that these commands do not require the minor mode to be active.
 
-- =C-c % e=: =code-cells-eval=
-- =C-c % b=: =code-cells-backward-cell=
-- =C-c % f=: =code-cells-forward-cell=
-- =C-c % B=: =code-cells-move-cell-up=
-- =C-c % F=: =code-cells-move-cell-down=
-- =C-c % ;=: =code-cells-comment-or-uncomment=
-- =C-c % @=: =code-cells-mark-cell=
+This package provides a number of cell editing commands.  They are
+listed below together with their bindings in =code-cells-mode-map=.
+Note, however, that these commands do not require the minor mode to be
+active; you can bind them to other keys or call them via =M-x=
+anywhere you like.
+
+- =code-cells-backward-cell= (=C-c % b=)
+- =code-cells-forward-cell= (=C-c % f=)
+- =code-cells-move-cell-up= (=C-c % B=)
+- =code-cells-move-cell-down= (=C-c % F=)
+- =code-cells-comment-or-uncomment= (=C-c % ;=)
+- =code-cells-copy= (=C-c % w=)
+- =code-cells-delete= (=C-c % d=)
+- =code-cells-duplicate= (=C-c % d=)
+- =code-cells-eval= (=C-c % e=)
+- =code-cells-eval-above=
+- =code-cells-eval-below=
+- =code-cells-eval-whole-buffer=
+- =code-cells-indent= (=C-c % \=)
+- =code-cells-kill= (=C-c % C-w=)
+- =code-cells-mark-cell= (=C-c % @=)
 
 The =code-cells-eval= command sends the current cell to a suitable
 REPL, chosen according to the current major and minor modes.  The
@@ -85,11 +96,11 @@ following configuration:
 #+begin_src emacs-lisp
   (with-eval-after-load 'code-cells
     (let ((map code-cells-mode-map))
-      (define-key map (kbd "M-p") 'code-cells-backward-cell)
-      (define-key map (kbd "M-n") 'code-cells-forward-cell)
-      (define-key map (kbd "C-c C-c") 'code-cells-eval)
+      (keymap-set map "M-p" 'code-cells-backward-cell)
+      (keymap-set map "M-n" 'code-cells-forward-cell)
+      (keymap-set map "C-c C-c" 'code-cells-eval)
       ;; Overriding other minor mode bindings requires some insistence...
-      (define-key map [remap jupyter-eval-line-or-region] 'code-cells-eval)))
+      (keymap-set map "<remap> <jupyter-eval-line-or-region>" 'code-cells-eval)))
 #+end_src
 
 ** Speed keys

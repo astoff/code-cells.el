@@ -141,25 +141,25 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
 ;;; Command-generating functions
 
 ;;;###autoload
-(defun code-cells-command (fun &rest options)
+(cl-defun code-cells-command (fun &key use-region pulse no-header)
   "Return an anonymous command calling FUN on the current cell.
 
 FUN must be a function that takes two character positions as argument.
 Most interactive commands that act on a region are of this form and
 can be used here.
 
-If OPTIONS contains the keyword :use-region, the command will act
-on the region instead of the current cell when appropriate.
+If USE-REGION is non-nil, the command will act on the region instead of
+the current cell when the region is active.
 
-If OPTIONS contains the keyword :pulse, provide visual feedback
-via `pulse-momentary-highlight-region'."
-  (let ((use-region (car (memq :use-region options)))
-        (pulse (car (memq :pulse options))))
-    (lambda ()
-      (interactive)
-      (pcase-let ((`(,start ,end) (code-cells--bounds nil use-region)))
-        (when pulse (pulse-momentary-highlight-region start end))
-        (funcall fun start end)))))
+If PULSE is non-nil, provide visual feedback via
+`pulse-momentary-highlight-region'.
+
+If NO-HEADER is non-nil, exclude the cell header from the acted region."
+  (lambda (arg)
+    (interactive "p")
+    (pcase-let ((`(,start ,end) (code-cells--bounds arg use-region no-header)))
+      (when pulse (pulse-momentary-highlight-region start end))
+      (funcall fun start end))))
 
 ;;;###autoload
 (defun code-cells-speed-key (command)
@@ -167,11 +167,11 @@ via `pulse-momentary-highlight-region'."
 The resulting keybinding will only have any effect when the point
 is at the beginning of a cell heading, in which case it executes
 COMMAND."
-  (list 'menu-item nil command
-        :filter (lambda (d)
-                  (when (and (bolp)
-                             (looking-at code-cells-boundary-regexp))
-                    d))))
+  `(menu-item nil ,command
+              :filter ,(lambda (d)
+                         (and (bolp)
+                              (looking-at code-cells-boundary-regexp)
+                              d))))
 
 ;;; Text manipulation commands
 
@@ -206,19 +206,42 @@ If ARG is non-nil, mark that many cells."
     (goto-char start)
     (push-mark end nil t)))
 
-;;;###autoload
-(defun code-cells-comment-or-uncomment (&optional arg)
+;;;###autoload(autoload 'code-cells-comment-or-uncomment "code-cells" nil t)
+(defalias 'code-cells-comment-or-uncomment
+  (code-cells-command #'comment-or-uncomment-region :no-header t)
   "Comment or uncomment the current code cell.
+If ARG is provided, act on that many cells.")
 
-ARG, if provided, is the number of comment characters to add or
-remove."
-  (interactive "P")
-  (pcase-let* ((`(,header ,end) (code-cells--bounds arg))
-               (start (save-excursion
-                        (goto-char header)
-                        (forward-line)
-                        (point))))
-    (comment-or-uncomment-region start end)))
+;;;###autoload(autoload 'code-cells-indent "code-cells" nil t)
+(defalias 'code-cells-indent (code-cells-command #'indent-region :no-header t)
+  "Reindent the current code cell.
+With a prefix argument, act on that many cells.")
+
+;;;###autoload(autoload 'code-cells-delete "code-cells" nil t)
+(defalias 'code-cells-delete (code-cells-command #'delete-region)
+  "Delete the current code cell without modifying the kill ring.
+With a prefix argument, act on that many cells.")
+
+;;;###autoload(autoload 'code-cells-kill "code-cells" nil t)
+(defalias 'code-cells-kill (code-cells-command #'kill-region)
+  "Kill (\"cut\") the current code cell, saving it in the kill ring.
+With a prefix argument, act on that many cells.")
+
+;;;###autoload(autoload 'code-cells-copy "code-cells" nil t)
+(defalias 'code-cells-copy (code-cells-command #'kill-ring-save :pulse t)
+  "Save the current code cell to the kill ring.
+With a prefix argument, act on that many cells.")
+
+;;;###autoload
+(defun code-cells-duplicate (&optional arg)
+  "Duplicate the current code cell.
+With a prefix argument, act on that many cells."
+  (interactive "p")
+  (pcase-let* ((`(,start ,end) (code-cells--bounds arg))
+               (text (buffer-substring start end)))
+    (save-excursion
+      (goto-char (if (and arg (cl-minusp arg)) start end))
+      (insert text))))
 
 ;;; Code evaluation
 
@@ -244,9 +267,7 @@ current code cell.  With a numeric prefix, evaluate that many
 code cells.
 
 Called from Lisp, evaluate region between START and END."
-  (interactive (code-cells--bounds (prefix-numeric-value current-prefix-arg)
-                                   'use-region
-                                   'no-header))
+  (interactive (code-cells--bounds (prefix-numeric-value current-prefix-arg) t t))
   (funcall
    (or (seq-some (pcase-lambda (`(,mode . ,fun))
                    (when (or (and (boundp mode) (symbol-value mode))
@@ -259,14 +280,40 @@ Called from Lisp, evaluate region between START and END."
   (pulse-momentary-highlight-region start end))
 
 ;;;###autoload
+(defun code-cells-eval-and-step (arg)
+  "Evaluate the current cell and move to the next one.
+With a prefix argument ARG, act on that many cells."
+  (interactive "p")
+  (pcase-let* ((`(,start ,end) (code-cells--bounds arg nil t)))
+    (code-cells-eval start end)
+    (if (cl-plusp arg)
+        (goto-char end)
+      (goto-char start)
+      (code-cells-forward-cell -2))))
+
+;;;###autoload
 (defun code-cells-eval-above (arg)
   "Evaluate this and all above cells.
 ARG (interactively, the prefix argument) specifies how many
 additional cells after point to include."
   (interactive "p")
-  (code-cells-eval (point-min) (save-excursion
-                                 (code-cells-forward-cell arg)
-                                 (point))))
+  (pcase-let* ((`(_ ,end) (code-cells--bounds arg nil t)))
+    (code-cells-eval (point-min) end)))
+
+;;;###autoload
+(defun code-cells-eval-below (arg)
+  "Evaluate the current cell and all below.
+ARG (interactively, the prefix argument) specifies how many
+cells after the current one to skip."
+  (interactive "p")
+  (pcase-let* ((`(,start _) (code-cells--bounds arg nil t)))
+    (code-cells-eval start (point-max))))
+
+;;;###autoload
+(defun code-cells-eval-whole-buffer ()
+  "Evaluate the entire buffer."
+  (interactive)
+  (code-cells-eval (point-min) (point-max)))
 
 ;;; Minor mode
 
@@ -341,13 +388,17 @@ This function is useful when added to a major mode hook."
 
 (let ((map (make-sparse-keymap)))
   (define-key code-cells-mode-map "\C-c%" map)
-  (define-key map ";" 'code-cells-comment-or-uncomment)
-  (define-key map "@" 'code-cells-mark-cell)
-  (define-key map "b" 'code-cells-backward-cell)
-  (define-key map "f" 'code-cells-forward-cell)
-  (define-key map "B" 'code-cells-move-cell-up)
-  (define-key map "F" 'code-cells-move-cell-down)
-  (define-key map "e" 'code-cells-eval))
+  (define-key map "b" #'code-cells-backward-cell)
+  (define-key map "f" #'code-cells-forward-cell)
+  (define-key map "B" #'code-cells-move-cell-up)
+  (define-key map "F" #'code-cells-move-cell-down)
+  (define-key map ";" #'code-cells-comment-or-uncomment)
+  (define-key map "w" #'code-cells-copy)
+  (define-key map "d" #'code-cells-duplicate)
+  (define-key map "e" #'code-cells-eval)
+  (define-key map "\\" #'code-cells-indent)
+  (define-key map "\C-w" #'code-cells-kill)
+  (define-key map "@" #'code-cells-mark-cell))
 
 ;;; Jupyter notebook conversion
 
