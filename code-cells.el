@@ -97,6 +97,8 @@ backward."
     (unless (eobp)
       (move-beginning-of-line 1))))
 
+(put 'code-cell 'forward-op #'code-cells-forward-cell) ;For thing at point
+
 ;;;###autoload
 (defun code-cells-backward-cell (&optional arg)
   "Move to the previous cell boundary, or beginning of buffer.
@@ -382,11 +384,13 @@ level."
          outline-heading-end-regexp "\n"
          paragraph-separate (rx (or (regexp paragraph-separate)
                                     (regexp code-cells-boundary-regexp))))
+        (add-hook 'context-menu-functions 'code-cells--context-menu 20 t)
         (font-lock-add-keywords nil (code-cells--font-lock-keywords)))
     (setq-local outline-level (pop code-cells--saved-vars)
                 outline-regexp (pop code-cells--saved-vars)
                 outline-heading-end-regexp (pop code-cells--saved-vars)
                 paragraph-separate (pop code-cells--saved-vars))
+    (remove-hook 'context-menu-functions 'code-cells--context-menu t)
     (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))
   (font-lock-flush))
 
@@ -412,6 +416,72 @@ This function is useful when added to a major mode hook."
   (define-key map "\\" #'code-cells-indent)
   (define-key map "\C-w" #'code-cells-kill)
   (define-key map "@" #'code-cells-mark-cell))
+
+(easy-menu-define code-cells-mode-menu code-cells-mode-map
+  "Menu for `code-cells-mode'."
+  '("Notebook"
+    ["Previous" code-cells-backward-cell
+     :help "Go to the previous code cell boundary"]
+    ["Next" code-cells-forward-cell
+     :help "Go to the next code cell boundary"]
+    ["Move Cell Up" code-cells-move-cell-up
+     :help "Transpose the current code cell and the cell above"]
+    ["Move Cell Down" code-cells-move-cell-down
+     :help "Transpose the current code cell and the cell below"]
+    "---"
+    ["Cut" code-cells-kill
+     :help "Cut (kill) the current code cell"]
+    ["Copy" code-cells-copy
+     :help "Copy the content of the current code cell"]
+    ["Select" code-cells-mark-cell
+     :help "Mark region of the current code cell"]
+    ["Duplicate" code-cells-duplicate
+     :help "Insert a copy of the current code cell below it"]
+    ["Comment Out" code-cells-comment-or-uncomment
+     :help "Comment or uncomment the current code cell"]
+    "---"
+    ["Evaluate" code-cells-eval
+     :help "Evaluate current code cell (or region, if active) in a suitable shell"]
+    ["Evaluate and Advance" code-cells-eval-and-step
+     :help "Evaluate current code cell and go to the next one"]
+    ["Evaluate Cells Above" code-cells-eval-above
+     :help "Evaluate all code cells above the current one"]
+    ["Evaluate Cells Below" code-cells-eval-below
+     :help "Evaluate current code cell and all cells below it"]
+    ["Evaluate Whole Buffer" code-cells-eval-whole-buffer
+     :help "Evaluate entire buffer in a suitable shell"]))
+
+(defun code-cells--context-menu (menu click)
+  "Populate MENU with code cells commands."
+  (if (use-region-p)
+      (keymap-set menu "<code-cells-eval>"
+       '(menu-item "Evaluate Region" code-cells-eval
+                   :help "Evaluate the marked region"))
+    (let ((bound (save-excursion
+                   (mouse-set-point click)
+                   (car (code-cells--bounds)))))
+      (keymap-set menu "<code-cells-eval-buffer>"
+       (if (eq bound (point-min))
+           `(menu-item "Evaluate Whole Buffer" ,(lambda (_) (interactive "i")
+                                                  (code-cells-eval-whole-buffer))
+                       :help "Evaluate the entire buffer")
+         `(menu-item "Evaluate Cells Above" ,(lambda (_) (interactive "i")
+                                               (code-cells-eval-above bound))
+                     :help "Evaluate code cells above click"))))
+    (keymap-set menu "<code-cells-eval>"
+     `(menu-item
+       "Evaluate Cell"
+       ,(lambda (e) (interactive "e")
+          (save-excursion
+            (mouse-set-point e)
+            (call-interactively #'code-cells-eval)))
+       :help "Evaluate the code cell at click")))
+  (keymap-set-after menu "<select-region> <mark-code-cell>"
+    `(menu-item "Cell" ,(lambda (e) (interactive "e")
+                          (mark-thing-at-mouse e 'code-cell))
+                :help "Mark the code cell at click for a subsequent cut/copy")
+    'mark-whole-buffer)
+  menu)
 
 ;;; Jupyter notebook conversion
 
