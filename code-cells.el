@@ -532,15 +532,17 @@ program name followed by arguments."
 
 (defun code-cells--guess-mode ()
   "Guess major mode associated to the current ipynb buffer."
-  (require 'json)
-  (declare-function json-read "json.el")
   (goto-char (point-min))
-  (let* ((nb (cl-letf ;; Skip over the possibly huge "cells" section
-                 (((symbol-function 'json-read-array) 'forward-sexp))
-               (json-read)))
-         (lang (let-alist nb
-                 (or .metadata.kernelspec.language
-                     .metadata.jupytext.main_language)))
+  ;; Skip over the possibly huge "cells" section
+  (search-forward "{")
+  (while (not (equal (json-parse-buffer) "metadata"))
+    (forward-sexp)
+    (search-forward ","))
+  (search-forward ":")
+  (let* ((metadata (json-parse-buffer :object-type 'alist))
+         (lang (let-alist metadata
+                 (or .kernelspec.language
+                     .jupytext.main_language)))
          (mode (intern (concat lang "-mode"))))
     (alist-get mode (bound-and-true-p major-mode-remap-alist) mode)))
 
