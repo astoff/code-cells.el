@@ -74,13 +74,50 @@ first capture determines the outline level."
   :type 'regexp
   :safe #'stringp)
 
+(defface code-cells-header-line '((t :extend t
+                                     :overline t
+                                     :inherit font-lock-comment-face))
+  "Face used by `code-cells-mode' to highlight cell boundaries.")
+
 (defcustom code-cells-major-mode-outline-min-level 0
   "Minimal level of major-mode outline headings.
 `code-cells-mode' integrates with `outline-minor-mode' by combining
 major-mode-defined outline levels with cell boundaries.  Major mode
 headings are demoted by at least this amount."
   :type 'natnum
-  :safe #'stringp)
+  :safe #'numberp)
+
+(defcustom code-cells-eval-region-commands
+  `((drepl--current . drepl-eval-region)
+    (jupyter-repl-interaction-mode . ,(apply-partially 'jupyter-eval-region nil))
+    (python-mode . python-shell-send-region)
+    (emacs-lisp-mode . eval-region)
+    (lisp-interaction-mode . eval-region))
+  "Alist of commands to evaluate a region.
+The keys are major or minor modes and the values are functions
+taking region bounds as argument."
+  :type '(alist :key-type symbol :value-type symbol))
+
+(defcustom code-cells-convert-ipynb-style
+  '(("jupytext" "--to" "ipynb")
+    ("jupytext" "--to" "auto:percent")
+    code-cells--guess-mode
+    code-cells-convert-ipynb-hook)
+  "Determines how to convert ipynb files for editing.
+The first two entries are lists of strings: the command name and
+arguments used, respectively, to convert to and from ipynb format.
+
+The third entry is a function called with no arguments to determine the
+major mode to be called after conversion from ipynb format.  The default
+setting tries to guess it from the notebook metadata.
+
+The fourth entry, also optional, is a hook run after the new major mode
+is activated."
+  :type '(list (repeat string) (repeat string) function symbol))
+
+(defcustom code-cells-convert-ipynb-hook '(code-cells-mode)
+  "Hook run after converting an ipynb notebook to a regular script."
+  :type 'hook)
 
 ;;; Cell navigation
 
@@ -252,17 +289,6 @@ With a prefix argument, act on that many cells."
 
 ;;; Code evaluation
 
-(defcustom code-cells-eval-region-commands
-  `((drepl--current . drepl-eval-region)
-    (jupyter-repl-interaction-mode . ,(apply-partially 'jupyter-eval-region nil))
-    (python-mode . python-shell-send-region)
-    (emacs-lisp-mode . eval-region)
-    (lisp-interaction-mode . eval-region))
-  "Alist of commands to evaluate a region.
-The keys are major or minor modes and the values are functions
-taking region bounds as argument."
-  :type '(alist :key-type symbol :value-type symbol))
-
 ;;;###autoload
 (defun code-cells-eval (start end)
   "Evaluate code according to current modes.
@@ -353,14 +379,11 @@ level."
                            1)
                        0))
          (mm-level (and (not at-boundary)
-                        (looking-at (cadr code-cells--saved-vars))
-                        (funcall (car code-cells--saved-vars)))))
+                        (looking-at (car code-cells--saved-vars))
+                        (funcall (cadr code-cells--saved-vars)))))
     (if mm-level
         (+ (max cell-level code-cells-major-mode-outline-min-level) mm-level)
       cell-level)))
-
-(defface code-cells-header-line '((t :extend t :overline t :inherit font-lock-comment-face))
-  "Face used by `code-cells-mode' to highlight cell boundaries.")
 
 (defun code-cells--font-lock-keywords ()
   "Font lock keywords to highlight cell boundaries."
@@ -371,27 +394,27 @@ level."
 (define-minor-mode code-cells-mode
   "Minor mode for cell-oriented code."
   :keymap (make-sparse-keymap)
-  (if code-cells-mode
-      (progn
-        (setq-local
-         code-cells--saved-vars (list outline-level
-                                      outline-regexp
-                                      outline-heading-end-regexp
-                                      paragraph-start)
-         outline-level 'code-cells--outline-level
-         outline-regexp (rx (or (regexp code-cells-boundary-regexp)
-                                (regexp outline-regexp)))
-         outline-heading-end-regexp "\n"
-         paragraph-separate (rx (or (regexp paragraph-separate)
-                                    (regexp code-cells-boundary-regexp))))
-        (add-hook 'context-menu-functions 'code-cells--context-menu 20 t)
-        (font-lock-add-keywords nil (code-cells--font-lock-keywords)))
-    (setq-local outline-level (pop code-cells--saved-vars)
-                outline-regexp (pop code-cells--saved-vars)
-                outline-heading-end-regexp (pop code-cells--saved-vars)
-                paragraph-separate (pop code-cells--saved-vars))
-    (remove-hook 'context-menu-functions 'code-cells--context-menu t)
-    (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))
+  (let ((vars '(outline-regexp
+                outline-level
+                outline-heading-end-regexp
+                paragraph-start)))
+    (cond
+     (code-cells-mode
+      (setq-local
+       code-cells--saved-vars (mapcar #'symbol-value vars)
+       outline-level 'code-cells--outline-level
+       outline-regexp (rx (or (regexp code-cells-boundary-regexp)
+                              (regexp outline-regexp)))
+       outline-heading-end-regexp "\n"
+       paragraph-separate (rx (or (regexp paragraph-separate)
+                                  (regexp code-cells-boundary-regexp))))
+      (add-hook 'context-menu-functions 'code-cells--context-menu 20 t)
+      (font-lock-add-keywords nil (code-cells--font-lock-keywords)))
+     (t
+      (dolist (var vars)
+        (set (make-local-variable var) (pop code-cells--saved-vars)))
+      (remove-hook 'context-menu-functions 'code-cells--context-menu t)
+      (font-lock-remove-keywords nil (code-cells--font-lock-keywords)))))
   (font-lock-flush))
 
 ;;;###autoload
@@ -485,27 +508,6 @@ This function is useful when added to a major mode hook."
 
 ;;; Jupyter notebook conversion
 
-(defcustom code-cells-convert-ipynb-style
-  '(("jupytext" "--to" "ipynb")
-    ("jupytext" "--to" "auto:percent")
-    code-cells--guess-mode
-    code-cells-convert-ipynb-hook)
-  "Determines how to convert ipynb files for editing.
-The first two entries are lists of strings: the command name and
-arguments used, respectively, to convert to and from ipynb
-format.
-
-The third entry is a function called with no arguments to
-determine the major mode to be called.  The default setting tries
-to guess it from the notebook metadata.
-
-The fourth entry, also optional, is a hook run after the new
-major mode is activated."
-  :type '(list (repeat string) (repeat string) function symbol))
-
-(defvar code-cells-convert-ipynb-hook '(code-cells-mode)
-  "Hook used in the default `code-cells-convert-ipynb-style'.")
-
 (defun code-cells--call-process (buffer command)
   "Pipe BUFFER through COMMAND, with output to the current buffer.
 Returns the process exit code.  COMMAND is a list of strings, the
@@ -545,15 +547,10 @@ program name followed by arguments."
 ;;;###autoload
 (defun code-cells-convert-ipynb ()
   "Convert buffer from ipynb format to a regular script."
-  (interactive)
-  (let* ((mode (funcall (or (nth 2 code-cells-convert-ipynb-style)
-                            (progn      ;For backwards compatibility with v0.3
-                              (lwarn 'code-cells :warning "\
-The third entry of `code-cells-convert-ipynb-style' should not be nil.")
-                              #'code-cells--guess-mode))))
+  (let* ((mode (funcall (caddr code-cells-convert-ipynb-style)))
          (exit (progn
                  (goto-char (point-min))
-                 (code-cells--call-process t (nth 1 code-cells-convert-ipynb-style)))))
+                 (code-cells--call-process t (cadr code-cells-convert-ipynb-style)))))
     (unless (zerop exit)
       (delete-region (point-min) (point))
       (error "Error converting notebook (exit code %s)" exit))
@@ -563,7 +560,7 @@ The third entry of `code-cells-convert-ipynb-style' should not be nil.")
     (add-hook 'write-file-functions #'code-cells-write-ipynb 80 t)
     (when (fboundp mode)
       (funcall mode)
-      (run-hooks (nth 3 code-cells-convert-ipynb-style)))))
+      (run-hooks (cadddr code-cells-convert-ipynb-style)))))
 
 ;;;###autoload
 (defun code-cells-write-ipynb (&optional file)
@@ -573,7 +570,7 @@ FILE defaults to the current buffer file name."
   (interactive "F")
   (let* ((file (or file buffer-file-name))
          (temp (generate-new-buffer " *cells--call-process output*"))
-         (exit (code-cells--call-process temp (nth 0 code-cells-convert-ipynb-style))))
+         (exit (code-cells--call-process temp (car code-cells-convert-ipynb-style))))
     (unless (eq 0 exit)
         (error "Error converting notebook (exit code %s)" exit))
     (with-current-buffer temp
