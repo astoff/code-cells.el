@@ -29,6 +29,10 @@ second style is compatible with Jupytext, among several other tools.
 More percent signs signify nested cells.  See section “Customization”
 below to learn how to change the cell boundary pattern.
 
+*Advertisement:* To complement this package, you may be interested in
+[[http://elpa.gnu.org/packages/drepl.html][dREPL]], a fully featured shell for Python and other languages with
+graphical capabilities.
+
 ** Minor mode
 
 The =code-cells-mode= minor mode provides the following things:
