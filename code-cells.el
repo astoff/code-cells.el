@@ -391,10 +391,26 @@ level."
   `((,(rx (regexp code-cells-boundary-regexp) (* any) "\n")
      0 'code-cells-header-line append)))
 
+(defvar-keymap code-cells--prefix-map
+  :repeat t
+  "b" #'code-cells-backward-cell
+  "f" #'code-cells-forward-cell
+  "B" #'code-cells-move-cell-up
+  "F" #'code-cells-move-cell-down
+  ";" #'code-cells-comment-or-uncomment
+  "w" #'code-cells-copy
+  "d" #'code-cells-duplicate
+  "e" #'code-cells-eval
+  "\\" #'code-cells-indent
+  "C-w" #'code-cells-kill
+  "@" #'code-cells-mark-cell)
+
 ;;;###autoload
 (define-minor-mode code-cells-mode
   "Minor mode for cell-oriented code."
-  :keymap (make-sparse-keymap)
+  :keymap (let ((map (make-sparse-keymap)))
+            (keymap-set map "C-c %" code-cells--prefix-map)
+            map)
   (let ((vars '(outline-regexp
                 outline-level
                 outline-heading-end-regexp
@@ -426,20 +442,6 @@ This function is useful when added to a major mode hook."
             (goto-char (point-min))
             (re-search-forward code-cells-boundary-regexp 5000 t))
       (code-cells-mode)))
-
-(let ((map (make-sparse-keymap)))
-  (define-key code-cells-mode-map "\C-c%" map)
-  (define-key map "b" #'code-cells-backward-cell)
-  (define-key map "f" #'code-cells-forward-cell)
-  (define-key map "B" #'code-cells-move-cell-up)
-  (define-key map "F" #'code-cells-move-cell-down)
-  (define-key map ";" #'code-cells-comment-or-uncomment)
-  (define-key map "w" #'code-cells-copy)
-  (define-key map "d" #'code-cells-duplicate)
-  (define-key map "e" #'code-cells-eval)
-  (define-key map "\\" #'code-cells-indent)
-  (define-key map "\C-w" #'code-cells-kill)
-  (define-key map "@" #'code-cells-mark-cell))
 
 (easy-menu-define code-cells-mode-menu code-cells-mode-map
   "Menu for `code-cells-mode'."
