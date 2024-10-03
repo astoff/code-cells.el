@@ -169,7 +169,9 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
                          (if (cl-plusp count) count 1))
                         (point))))
         (code-cells-backward-cell (abs count))
-        (when no-header (forward-line))
+        (and no-header
+             (looking-at-p code-cells-boundary-regexp)
+             (forward-line))
         (pcase count
           (0 (list bol end))
           (-1 (list (point) bol))
