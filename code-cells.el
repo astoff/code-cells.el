@@ -393,14 +393,16 @@ level."
 
 (defvar-keymap code-cells--prefix-map
   :repeat t
-  "b" #'code-cells-backward-cell
-  "f" #'code-cells-forward-cell
-  "B" #'code-cells-move-cell-up
-  "F" #'code-cells-move-cell-down
+  "p" #'code-cells-backward-cell
+  "n" #'code-cells-forward-cell
+  "P" #'code-cells-move-cell-up
+  "N" #'code-cells-move-cell-down
   ";" #'code-cells-comment-or-uncomment
   "w" #'code-cells-copy
   "d" #'code-cells-duplicate
   "e" #'code-cells-eval
+  "s" #'code-cells-eval-and-step
+  "a" #'code-cells-eval-above
   "\\" #'code-cells-indent
   "C-w" #'code-cells-kill
   "@" #'code-cells-mark-cell)

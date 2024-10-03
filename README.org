@@ -62,16 +62,17 @@ Note, however, that these commands do not require the minor mode to be
 active; you can bind them to other keys or call them via =M-x=
 anywhere you like.
 
-- =code-cells-backward-cell= (=C-c % b=)
-- =code-cells-forward-cell= (=C-c % f=)
-- =code-cells-move-cell-up= (=C-c % B=)
-- =code-cells-move-cell-down= (=C-c % F=)
+- =code-cells-backward-cell= (=C-c % p=)
+- =code-cells-forward-cell= (=C-c % n=)
+- =code-cells-move-cell-up= (=C-c % P=)
+- =code-cells-move-cell-down= (=C-c % N=)
 - =code-cells-comment-or-uncomment= (=C-c % ;=)
 - =code-cells-copy= (=C-c % w=)
-- =code-cells-delete= (=C-c % d=)
+- =code-cells-delete=
 - =code-cells-duplicate= (=C-c % d=)
 - =code-cells-eval= (=C-c % e=)
-- =code-cells-eval-above=
+- =code-cells-eval-and-step= (=C-c % s=)
+- =code-cells-eval-above= (=C-c % a=)
 - =code-cells-eval-below=
 - =code-cells-eval-whole-buffer=
 - =code-cells-indent= (=C-c % \=)
