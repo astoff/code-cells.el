@@ -127,12 +127,16 @@ is activated."
 With ARG, repeat this that many times.  If ARG is negative, move
 backward."
   (interactive "p")
-  (let ((page-delimiter code-cells-boundary-regexp))
-    (when (and (< 0 arg) (looking-at page-delimiter))
-      (forward-char))
-    (forward-page arg)
-    (unless (eobp)
-      (move-beginning-of-line 1))))
+  (unless arg (setq arg 1))
+  (unless (zerop arg)
+    (when (or (cl-plusp arg) (not (bolp)))
+      (goto-char (pos-eol)))
+    (condition-case nil
+        (dotimes (_ (abs arg))
+          (re-search-forward code-cells-boundary-regexp
+                             nil nil (cl-signum arg)))
+      (search-failed (goto-char (if (cl-plusp arg) (point-max) (point-min))))
+      (:success (when (cl-plusp arg) (goto-char (match-beginning 0)))))))
 
 (put 'code-cell 'forward-op #'code-cells-forward-cell) ;For thing at point
 
@@ -174,12 +178,9 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
 (defun code-cells--neighbor-bounds (distance)
   "Return the bounds of the cell DISTANCE cells away from the current one."
   (save-excursion
-    (when (/= 0 distance)
-      ;; Except when at the boundary, `(code-cells-forward-cell -1)' doesn't
-      ;; move out of current cell
-      (unless (looking-at-p code-cells-boundary-regexp)
-        (code-cells-backward-cell))
-      (code-cells-forward-cell distance))
+    (unless (looking-at-p code-cells-boundary-regexp)
+      (code-cells-backward-cell))
+    (code-cells-forward-cell distance)
     (code-cells--bounds)))
 
 ;;; Command-generating functions
