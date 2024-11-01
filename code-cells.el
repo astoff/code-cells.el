@@ -91,6 +91,7 @@ headings are demoted by at least this amount."
   `((drepl--current . drepl-eval-region)
     (jupyter-repl-interaction-mode . ,(apply-partially 'jupyter-eval-region nil))
     (python-mode . python-shell-send-region)
+    (python-ts-mode . python-shell-send-region) ;For Emacs ≤ 29
     (emacs-lisp-mode . eval-region)
     (lisp-interaction-mode . eval-region))
   "Alist of commands to evaluate a region.
