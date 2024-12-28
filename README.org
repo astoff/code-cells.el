@@ -244,7 +244,7 @@ a more notebook-like experience, with interspersed code and results.
 
 #+begin_src emacs-lisp
   (setq code-cells-convert-ipynb-style '(("pandoc" "--to" "ipynb" "--from" "org")
-                                         ("pandoc" "--to" "org" "--from" "ipynb")
+                                         ("pandoc" "--to" "org" "--from" "ipynb" "--extract-media" "./ipynb-images/")
                                          (lambda () #'org-mode)))
 #+end_src
 
