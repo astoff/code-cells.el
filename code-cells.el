@@ -97,7 +97,7 @@ first capture determines the outline level."
   :safe 'booleanp)
 
 (defface code-cells-highlight-face
-  '((t :inherit avy-background-face
+  '((t :inherit company-box-background
        :weight bold
        :extend t))
   "Default face for highlighting the current cell."
