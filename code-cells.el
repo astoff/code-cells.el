@@ -240,13 +240,15 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
 (defun code-cells-highlight ()
   "Activate the Code-Cells overlay on the current line."
   (if code-cells-mode  ; Might be changed outside the mode function.
-      (progn
-        (unless code-cells-overlay
-          (setq code-cells-overlay (make-overlay 1 1)) ; to be moved
-          (overlay-put code-cells-overlay 'face code-cells-highlight-face))
-        (overlay-put code-cells-overlay
-                     'window (unless code-cells-sticky-flag (selected-window)))
-        (code-cells-move-ol code-cells-overlay))
+      (let ((current-cell (code-cells--bounds)))
+        (progn
+          (unless code-cells-overlay
+            (setq code-cells-overlay (make-overlay 1 1)) ; to be moved
+            (overlay-put code-cells-overlay 'face code-cells-highlight-face))
+          (overlay-put code-cells-overlay
+                       'window (unless code-cells-sticky-flag (selected-window)))
+          ;; Only move overlay when cell boundaries change
+          (code-cells-move-ol code-cells-overlay current-cell)))
     (code-cells-unhighlight)))
 
 (defun code-cells-unhighlight ()
@@ -254,20 +256,25 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
   (when code-cells-overlay
     (delete-overlay code-cells-overlay)))
 
-(defun code-cells-move-ol (overlay)
-  "Move the Code-Cells overlay."
-  (if-let ((start-end (code-cells--bounds)))
-      (move-overlay overlay (car start-end) (cadr start-end))
+(defun code-cells-move-ol (overlay bounds)
+  "Move the Code-Cells overlay.
+BOUNDS can be provided as (start . end) to avoid recalculation."
+  (if bounds
+      (move-overlay overlay (car bounds) (cadr bounds))
     (move-overlay overlay 1 1)))
 
 (defun code-cells-setup-cellhighlight ()
   ;; In case `kill-all-local-variables' is called.
   (add-hook 'change-major-mode-hook #'code-cells-unhighlight nil t)
-  (if code-cells-sticky-flag
-      (remove-hook 'pre-command-hook #'code-cells-unhighlight t)
-    (add-hook 'pre-command-hook #'code-cells-unhighlight nil t))
+  ;; Remove pre-command hook to prevent flickering
+  (remove-hook 'pre-command-hook #'code-cells-unhighlight t)
+  ;; Set up post-command hook for highlighting
   (code-cells-highlight)
-  (add-hook 'post-command-hook #'code-cells-highlight nil t))
+  (add-hook 'post-command-hook 
+            (lambda ()
+              (when (sit-for 0.05 t)
+                (code-cells-highlight)))
+            nil t))
 
 ;;; * Command-generating functions
 
