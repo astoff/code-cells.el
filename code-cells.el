@@ -1,4 +1,4 @@
-;;; code-cells.el --- Lightweight notebooks with support for ipynb files -*- lexical-binding: t; -*-
+;;; * code-cells.el --- Lightweight notebooks with support for ipynb files -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022, 2023  Free Software Foundation, Inc.
 
@@ -21,7 +21,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-;;; Commentary:
+;;; * Commentary:
 
 ;; With this package, you can efficiently navigate, edit and execute
 ;; code split into cells according to certain magic comments.  It also
@@ -49,7 +49,7 @@
 ;; file, but you can also activate it in any other buffer, either
 ;; manually or through a hook.
 
-;;; News:
+;;; * News:
 
 ;; Version 0.5
 ;; - Several new editing commands.
@@ -57,7 +57,7 @@
 ;; - Some changed keybindings.
 ;; - More consistent handling of numeric arguments and cell ranges.
 
-;;; Code:
+;;; * Code:
 
 (require 'outline)
 (require 'pulse)
@@ -75,6 +75,7 @@
   (rx line-start
       (+ (syntax comment-start))
       (or (seq (* (syntax whitespace)) "%" (group-n 1 (+ "%")))
+	  (seq (* (syntax whitespace)) "*")
           (seq " In[" (* (any space digit)) "]:")))
   "Regular expression specifying cell boundaries.
 It should match at the beginning of a line.  The length of the
@@ -86,6 +87,46 @@ first capture determines the outline level."
                                      :overline t
                                      :inherit font-lock-comment-face))
   "Face used by `code-cells-mode' to highlight cell boundaries.")
+
+; highlight ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defcustom code-cells-highlight-cell t
+  "Non-nil tells Code-Cells mode to highlight the current cell."
+  :type 'boolean
+  :group 'aesthetics
+  :safe 'booleanp)
+
+(defface code-cells-highlight-face
+  '((t :inherit org-block
+       :weight bold
+       :extend t))
+  "Default face for highlighting the current cell."
+  :group 'aesthetics)
+
+(defvar code-cells-overlay nil
+  "Overlay used by Code-Cells mode to highlight the current cell.")
+(make-variable-buffer-local 'code-cells-overlay)
+
+(defcustom code-cells-highlight-face 'code-cells-highlight-face
+  "Face with which to highlight the current cell."
+  :type 'face
+  :group 'aesthetics
+  :set (lambda (symbol value)
+         (set symbol value)
+         (dolist (buffer (buffer-list))
+           (with-current-buffer buffer
+             (when code-cells-overlay
+               (overlay-put code-cells-overlay 'face code-cells-highlight-face))))))
+
+(defcustom code-cells-sticky-flag nil
+  "Non-nil means the Code-Cells mode highlight appears in all windows.
+Otherwise Code-Cells mode will highlight only in the selected
+window.  Setting this variable takes effect the next time you use
+the command `code-cells-mode' to turn Code-Cells mode on."
+  :type 'boolean
+  :group 'aesthetics)
+
+; highlight ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defcustom code-cells-major-mode-outline-min-level 0
   "Minimal level of major-mode outline headings.
@@ -128,7 +169,7 @@ is activated."
   "Hook run after converting an ipynb notebook to a regular script."
   :type 'hook)
 
-;;; Cell navigation
+;;; * Cell navigation
 
 ;;;###autoload
 (defun code-cells-forward-cell (&optional arg)
@@ -194,7 +235,48 @@ If NO-HEADER is non-nil, do not include the cell boundary line."
     (code-cells-forward-cell distance)
     (code-cells--bounds)))
 
-;;; Command-generating functions
+;;; * Cell Highlighting
+
+(defun code-cells-highlight ()
+  "Activate the Code-Cells overlay on the current line."
+  (if code-cells-mode  ; Might be changed outside the mode function.
+      (let ((current-cell (code-cells--bounds)))
+        (progn
+          (unless code-cells-overlay
+            (setq code-cells-overlay (make-overlay 1 1)) ; to be moved
+            (overlay-put code-cells-overlay 'face code-cells-highlight-face))
+          (overlay-put code-cells-overlay
+                       'window (unless code-cells-sticky-flag (selected-window)))
+          ;; Only move overlay when cell boundaries change
+          (code-cells-move-ol code-cells-overlay current-cell)))
+    (code-cells-unhighlight)))
+
+(defun code-cells-unhighlight ()
+  "Deactivate the Code-Cells overlay on the current line."
+  (when code-cells-overlay
+    (delete-overlay code-cells-overlay)))
+
+(defun code-cells-move-ol (overlay bounds)
+  "Move the Code-Cells overlay.
+BOUNDS can be provided as (start . end) to avoid recalculation."
+  (if bounds
+      (move-overlay overlay (car bounds) (cadr bounds))
+    (move-overlay overlay 1 1)))
+
+(defun code-cells-setup-cellhighlight ()
+  ;; In case `kill-all-local-variables' is called.
+  (add-hook 'change-major-mode-hook #'code-cells-unhighlight nil t)
+  ;; Remove pre-command hook to prevent flickering
+  (remove-hook 'pre-command-hook #'code-cells-unhighlight t)
+  ;; Set up post-command hook for highlighting
+  (code-cells-highlight)
+  (add-hook 'post-command-hook 
+            (lambda ()
+              (when (sit-for 0.05 t)
+                (code-cells-highlight)))
+            nil t))
+
+;;; * Command-generating functions
 
 ;;;###autoload
 (cl-defun code-cells-command (fun &key use-region pulse no-header)
@@ -229,7 +311,7 @@ COMMAND."
                               (looking-at code-cells-boundary-regexp)
                               d))))
 
-;;; Text manipulation commands
+;;; * Text manipulation commands
 
 ;;;###autoload
 (defun code-cells-move-cell-down (arg)
@@ -299,7 +381,7 @@ With a prefix argument, act on that many cells."
       (goto-char (if (and arg (cl-minusp arg)) start end))
       (insert text))))
 
-;;; Code evaluation
+;;; * Code evaluation
 
 ;;;###autoload
 (defun code-cells-eval (start end)
@@ -368,7 +450,7 @@ From Lisp, just evaluate from POINT to end of buffer."
   (interactive)
   (code-cells-eval (point-min) (point-max)))
 
-;;; Minor mode
+;;; * Minor mode
 
 (defvar-local code-cells--saved-vars nil
   "A place to save variables before activating `code-cells-mode'.")
@@ -439,7 +521,8 @@ level."
        paragraph-separate (rx (or (regexp paragraph-separate)
                                   (regexp code-cells-boundary-regexp))))
       (add-hook 'context-menu-functions 'code-cells--context-menu 20 t)
-      (font-lock-add-keywords nil (code-cells--font-lock-keywords)))
+      (font-lock-add-keywords nil (code-cells--font-lock-keywords))
+      (when code-cells-highlight-cell (code-cells-setup-cellhighlight)))
      (t
       (dolist (var vars)
         (set (make-local-variable var) (pop code-cells--saved-vars)))
@@ -522,7 +605,7 @@ This function is useful when added to a major mode hook."
     'mark-whole-buffer)
   menu)
 
-;;; Jupyter notebook conversion
+;;; * Jupyter notebook conversion
 
 (defun code-cells--call-process (buffer command)
   "Pipe BUFFER through COMMAND, with output to the current buffer.
@@ -603,4 +686,4 @@ FILE defaults to the current buffer file name."
 (add-to-list 'auto-mode-alist '("\\.ipynb\\'" . code-cells-convert-ipynb))
 
 (provide 'code-cells)
-;;; code-cells.el ends here
+;;; * code-cells.el ends here
